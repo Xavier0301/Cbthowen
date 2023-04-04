@@ -22,9 +22,10 @@ void generate_h3_values(matrix_t* values, size_t num_hashes, size_t num_inputs, 
     }
 }
 
-void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes) {
+void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, unsigned char bleach) {
     model->pad_zeros = (((num_inputs / filter_inputs) * filter_inputs) - num_inputs) % filter_inputs;
     model->num_inputs_total = num_inputs + model->pad_zeros;
+    model->bits_per_input = bits_per_input;
     model->num_classes = num_classes;
 
     model->num_filters = num_inputs / filter_inputs;
@@ -32,7 +33,7 @@ void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t fi
     model->filter_entries = filter_entries;
     model->filter_hashes = filter_hashes;
 
-    model->bleach = 1;
+    model->bleach = bleach;
 
     model_init_buffers(model);
 }

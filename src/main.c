@@ -7,7 +7,35 @@
 #include "model.h"
 #include "tensor.h"
 #include "data_loader.h"
+#include "model_manager.h"
 
+void load_and_test() {
+    model_t model;
+
+    printf("Loading model\n");
+
+    read_model("model.dat", &model);
+
+    printf("Loading dataset\n");
+    load_mnist();
+
+    printf("Binarizing dataset with %zu bits per input\n", model.bits_per_input);
+    binarize_mnist(model.bits_per_input);
+
+    print_binarized_mnist_image(7555, 2);
+
+    printf("Testing with bleach %d\n", model.bleach);
+
+    size_t correct = 0;
+    for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
+        uint64_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        correct += (class == test_labels[sample_it]);
+    }
+
+    double accuracy = ((double) correct) / ((double) MNIST_NUM_TEST);
+    printf("Accuracy %zu/%d (%f%%)\n", correct, MNIST_NUM_TEST, 100 * accuracy);
+
+}
 
 void train() {
     model_t model;
@@ -22,7 +50,7 @@ void train() {
     size_t filter_entries = 1024;
     size_t filter_hashes = 2;
 
-    model_init(&model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes);
+    model_init(&model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes, bits_per_input, 1);
 
     printf("Loading dataset\n");
     load_mnist();
@@ -49,19 +77,25 @@ void train() {
         correct += (class == test_labels[sample_it]);
     }
 
-    printf("Accuracy %zu/%d (%f%%)\n", correct, MNIST_NUM_TEST, ((double) 100 * correct) / ((double) MNIST_NUM_TEST));
+    double accuracy = ((double) correct) / ((double) MNIST_NUM_TEST);
+    printf("Accuracy %zu/%d (%f%%)\n", correct, MNIST_NUM_TEST, 100 * accuracy);
+
+    write_model("model.dat", &model);
 }
 
 int main(int argc, char *argv[]) {                              
 
-//   /* Error Checking */
-//   if (argc < 2) {
-//     printf("Error: usage: %s <program_file_1> <program_file_2> ...\n",
-//            argv[0]);
-//     exit(1);
-//   }
+    /* Error Checking */
+    if(argc < 2) {
+        printf("Error: usage: %s <0/1>.\n   0 is for training from scratch\n    1 is for loading model.dat and testing\n",
+                argv[0]);
+        exit(1);
+    }
 
-    train();
+    if(argv[1][0] == '0')
+        train();
+    else
+        load_and_test();
 
     return 0;
 }

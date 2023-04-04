@@ -5,7 +5,7 @@ model_t global_model;
 void create_model(size_t input_size, size_t bits_per_input, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes) {
     size_t num_inputs = input_size * bits_per_input;
 
-    model_init(&global_model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes);
+    model_init(&global_model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes, bits_per_input, 1);
 }
 
 void set_hashes(uint64_t* hash_values, size_t size) {

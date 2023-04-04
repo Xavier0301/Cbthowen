@@ -6,13 +6,16 @@
 void read_model(const char* filename, model_t* model) {
     FILE* f = fopen(filename, "r");
 
+    READ_FIELD(model, pad_zeros, f);
     READ_FIELD(model, num_inputs_total, f);
+    READ_FIELD(model, bits_per_input, f);
     READ_FIELD(model, num_classes, f);
     READ_FIELD(model, filter_inputs, f);
     READ_FIELD(model, filter_entries, f);
     READ_FIELD(model, filter_hashes, f);
+    READ_FIELD(model, bleach, f);
 
-    model_init(model, model->num_inputs_total, model->num_classes, model->filter_inputs, model->filter_entries, model->filter_hashes);
+    model_init(model, model->num_inputs_total, model->num_classes, model->filter_inputs, model->filter_entries, model->filter_hashes, model->bits_per_input, model->bleach);
 
     READ_BUFFER(model, input_order, model->num_inputs_total, f);
 
@@ -42,11 +45,14 @@ void read_tensor(FILE* f, tensor3d_t* tensor, size_t size) {
 void write_model(const char* filename, model_t* model) {
     FILE* f = fopen(filename, "w");
 
+    SAVE_FIELD(model, pad_zeros, f);
     SAVE_FIELD(model, num_inputs_total, f);
+    SAVE_FIELD(model, bits_per_input, f);
     SAVE_FIELD(model, num_classes, f);
     SAVE_FIELD(model, filter_inputs, f);
     SAVE_FIELD(model, filter_entries, f);
     SAVE_FIELD(model, filter_hashes, f);
+    SAVE_FIELD(model, bleach, f);
 
     SAVE_BUFFER(model, input_order, model->num_inputs_total, f);
 
