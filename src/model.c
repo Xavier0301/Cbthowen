@@ -40,7 +40,7 @@ void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t fi
 }
 
 void model_init_buffers(model_t* model){
-    model->input_order = calloc(model->num_inputs_total, sizeof(uint64_t));
+    model->input_order = calloc(model->num_inputs_total, sizeof(*model->input_order));
     randomize_input_order(model->input_order, model->num_inputs_total);
 
     tensor_init(&model->data, model->num_classes, model->num_filters, model->filter_entries);
@@ -48,7 +48,7 @@ void model_init_buffers(model_t* model){
     matrix_init(&model->hash_parameters, model->filter_hashes, model->filter_inputs);
     generate_h3_values(&model->hash_parameters, model->filter_hashes, model->filter_inputs, model->filter_entries);
 
-    reorder_buffer = calloc(model->num_inputs_total, sizeof(uint64_t));
+    reorder_buffer = calloc(model->num_inputs_total, sizeof(*reorder_buffer));
 
     // used in predict2
     matrix_init(&hashes_buffer, model->num_filters, model->filter_hashes);

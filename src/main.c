@@ -45,7 +45,7 @@ void train() {
 
     size_t correct = 0;
     for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
-        uint64_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        size_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
         correct += (class == test_labels[sample_it]);
     }
 
@@ -74,7 +74,7 @@ void load_and_test() {
 
     size_t correct = 0;
     for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
-        uint64_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        size_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
         correct += (class == test_labels[sample_it]);
     }
 
