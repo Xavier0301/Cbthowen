@@ -140,6 +140,6 @@ void filter_add_member(model_t* model, size_t discriminator_index, size_t filter
  * @param filter_inputs 
  * @param input 
  */
-void hash_input(matrix_t* hashes, matrix_t* hash_params, size_t num_filters, size_t filter_hashes, size_t filter_inputs, element_t* input);
+void set_hashes_buffer(matrix_t* hash_params, size_t num_filters, size_t filter_hashes, size_t filter_inputs, element_t* input);
 
 #endif

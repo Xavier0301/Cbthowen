@@ -100,13 +100,13 @@ void compare() {
 
     printf("Testing with bleach %d\n", model.bleach);
 
-    size_t correct = 0;
+    size_t agree = 0;
     for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
         size_t class1 = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
         size_t class2 = model_predict2(&model, MATRIX_AXIS1(binarized_test, sample_it));
-        if(class1 != class2)
-            printf("WRONG CLASS: %d vs. %d\n", class1, class2);
+        agree += (class1 == class2);
     }
+    printf("Agreeing: %lf%%\n", 100 * ((double) agree) / MNIST_NUM_TEST);
 }
 
 int main(int argc, char *argv[]) {                              
