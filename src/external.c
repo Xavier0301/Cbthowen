@@ -29,12 +29,12 @@ uint64_t predict(unsigned char* input) {
 }
 
 void test_write_read() {
-    char* model_path = "/Users/xavier/Desktop/Cours/Ici/Proj/Cbthowen/model.dat";
+    char* model_path = "/Users/xavier/Desktop/Cours/Ici/WNN/Cbthowen/model.dat";
     write_model(model_path, &global_model);
     read_model(model_path, &global_model);
 }
 
 void test_read_model() {
-    char* model_path = "/Users/xavier/Desktop/Cours/Ici/Proj/Cbthowen/model.dat";
+    char* model_path = "/Users/xavier/Desktop/Cours/Ici/WNN/Cbthowen/model.dat";
     read_model(model_path, &global_model);
 }

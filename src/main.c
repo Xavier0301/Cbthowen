@@ -9,34 +9,6 @@
 #include "data_loader.h"
 #include "model_manager.h"
 
-void load_and_test() {
-    model_t model;
-
-    printf("Loading model\n");
-
-    read_model("model.dat", &model);
-
-    printf("Loading dataset\n");
-    load_mnist();
-
-    printf("Binarizing dataset with %zu bits per input\n", model.bits_per_input);
-    binarize_mnist(model.bits_per_input);
-
-    print_binarized_mnist_image(7555, 2);
-
-    printf("Testing with bleach %d\n", model.bleach);
-
-    size_t correct = 0;
-    for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
-        uint64_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
-        correct += (class == test_labels[sample_it]);
-    }
-
-    double accuracy = ((double) correct) / ((double) MNIST_NUM_TEST);
-    printf("Accuracy %zu/%d (%f%%)\n", correct, MNIST_NUM_TEST, 100 * accuracy);
-
-}
-
 void train() {
     model_t model;
 
@@ -83,6 +55,60 @@ void train() {
     write_model("model.dat", &model);
 }
 
+void load_and_test() {
+    model_t model;
+
+    printf("Loading model\n");
+
+    read_model("model.dat", &model);
+
+    printf("Loading dataset\n");
+    load_mnist();
+
+    printf("Binarizing dataset with %zu bits per input\n", model.bits_per_input);
+    binarize_mnist(model.bits_per_input);
+
+    print_binarized_mnist_image(7555, 2);
+
+    printf("Testing with bleach %d\n", model.bleach);
+
+    size_t correct = 0;
+    for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
+        uint64_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        correct += (class == test_labels[sample_it]);
+    }
+
+    double accuracy = ((double) correct) / ((double) MNIST_NUM_TEST);
+    printf("Accuracy %zu/%d (%f%%)\n", correct, MNIST_NUM_TEST, 100 * accuracy);
+
+}
+
+void compare() {
+    model_t model;
+
+    printf("Loading model\n");
+
+    read_model("model.dat", &model);
+
+    printf("Loading dataset\n");
+    load_mnist();
+
+    printf("Binarizing dataset with %zu bits per input\n", model.bits_per_input);
+    binarize_mnist(model.bits_per_input);
+
+    print_binarized_mnist_image(7555, 2);
+
+    printf("Testing with bleach %d\n", model.bleach);
+
+    size_t correct = 0;
+    for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
+        size_t class1 = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        size_t class2 = model_predict2(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        if(class1 != class2)
+            printf("WRONG CLASS: %d vs. %d\n", class1, class2);
+    }
+}
+
 int main(int argc, char *argv[]) {                              
 
     /* Error Checking */
@@ -94,8 +120,10 @@ int main(int argc, char *argv[]) {
 
     if(argv[1][0] == '0')
         train();
-    else
+    else if(argv[1][0] == '1')
         load_and_test();
+    else
+        compare();
 
     return 0;
 }
