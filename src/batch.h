@@ -16,8 +16,8 @@
  * @param input_batch of shape (batch_size, #elements_per_sample)
  * @param batch_size 
  */
-void batch_hashing(tensor3d_t resulting_hashes, model_t* model, bmatrix_t* input_batch, size_t batch_size);
+void batch_hashing(tensor3d_t* resulting_hashes, model_t* model, bmatrix_t* input_batch, size_t batch_size);
 
-void batch_prediction(size_t* results, model_t* model, element_t* input);
+void batch_prediction(size_t* results, model_t* model, bmatrix_t* input_batch, size_t batch_size);
 
 #endif 
