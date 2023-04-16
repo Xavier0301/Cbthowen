@@ -160,13 +160,13 @@ entry_t filter_reduction(entry_t* filter, entry_t* hashes, size_t filter_hashes)
     return min;
 }
 
-void set_hashes_buffer(matrix_t* hash_params, size_t num_filters, size_t filter_hashes, size_t filter_inputs, element_t* input) {
+void perform_hashing(matrix_t resulting_hashes, model_t* model, element_t* input) {
     element_t* chunk = input;
-    for(size_t chunk_it = 0; chunk_it < num_filters; ++chunk_it) {
-        for(size_t hash_it = 0; hash_it < filter_hashes; ++hash_it) {
-            *MATRIX(hashes_buffer, chunk_it, hash_it) = h3_hash(chunk, MATRIX_AXIS1(*hash_params, hash_it), filter_inputs, filter_hashes);
+    for(size_t chunk_it = 0; chunk_it < model->num_filters; ++chunk_it) {
+        for(size_t hash_it = 0; hash_it < model->filter_hashes; ++hash_it) {
+            *MATRIX(resulting_hashes, chunk_it, hash_it) = h3_hash(chunk, MATRIX_AXIS1(model->hash_parameters, hash_it), model->filter_inputs, model->filter_hashes);
         }
-        chunk += filter_inputs;
+        chunk += model->filter_inputs;
     }
 }
 
@@ -175,7 +175,7 @@ size_t model_predict2(model_t* model, element_t* input) {
     set_reorder_buffer(input, model->input_order, model->num_inputs_total);
 
     // Hash
-    set_hashes_buffer(&model->hash_parameters, model->num_filters, model->filter_hashes, model->filter_inputs, reorder_buffer);
+    perform_hashing(hashes_buffer, model, reorder_buffer);
 
     // Calculate popcounts for each discriminators
     entry_t popcounts[model->num_classes];

@@ -120,7 +120,7 @@ int filter_check_membership(model_t* model, size_t discriminator_index, size_t f
 entry_t filter_reduction(entry_t* filter, entry_t* hashes, size_t filter_hashes);
 
 /**
- * @brief 
+ * @brief Make the filter learn the input
  * 
  * @param model The model to train
  * @param discriminator_index The index of the discriminator in the model passed (the class of input)
@@ -133,13 +133,14 @@ void filter_add_member(model_t* model, size_t discriminator_index, size_t filter
  * @brief Hashes the whole input by (1) dividing the input into chunks that go into each filter
  * (2) hashing each chunk a specified number of times
  * 
- * @param hashes A malloc-ed hash buffer of shape (#filter, #filter_hashes)
+ * @param hashes A malloc-e
+ * d hash buffer of shape (#filter, #filter_hashes)
  * @param hash_params Hash params of shape (#filter_hashes, #filter_inputs)
  * @param num_filters
  * @param filter_hashes 
  * @param filter_inputs 
  * @param input 
  */
-void set_hashes_buffer(matrix_t* hash_params, size_t num_filters, size_t filter_hashes, size_t filter_inputs, element_t* input);
+void perform_hashing(matrix_t resulting_hashes, model_t* model, element_t* input);
 
 #endif
