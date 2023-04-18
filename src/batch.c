@@ -9,5 +9,7 @@ void batch_hashing(tensor3d_t* resulting_hashes, model_t* model, bmatrix_t* inpu
 }
 
 void batch_prediction(size_t* results, model_t* model, bmatrix_t* input_batch, size_t batch_size) {
-
+    for(size_t it = 0; it < batch_size; ++it) {
+        results[it] = model_predict2(model, MATRIX_AXIS1(*input_batch, it));
+    }
 }
