@@ -138,6 +138,7 @@ void test_batching() {
 
     for(size_t sample_it = 0; sample_it < batch_size; ++sample_it) {
         results[sample_it] = model_predict2(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        printf("Sample %zu: %zu\n", sample_it, results[sample_it]);
         agree += (results[sample_it] == results_batch[sample_it]);
     }
     printf("Agreeing: %lf%%\n", 100 * ((double) agree) / batch_size);
@@ -177,16 +178,37 @@ void test_reordering_dataset() {
     printf("Reorder agreeing: %lf%%\n", 100 * ((double) agree) / MNIST_NUM_TEST);
 }
 
+void print_model_data() {
+    model_t model;
+
+    printf("Loading model\n");
+
+    read_model("model.dat", &model);
+
+    for(size_t discr_it = 0; discr_it < 1; ++discr_it) {
+        printf("Discriminator %zu.\n\n", discr_it);
+        for(size_t filter_it = 0; filter_it < 1; ++filter_it) {
+            printf("Filter %zu.\n", filter_it);
+            for(size_t entry_it = 0; entry_it < model.filter_entries; ++entry_it) {
+                uint32_t el = *TENSOR3D(model.data, discr_it, filter_it, entry_it);
+                printf("%u ", el);
+            }
+            printf("\n");
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {                              
 
     /* Error Checking */
     if(argc < 2) {
-        printf("Error: usage: %s 0..4.\n\t \
+        printf("Error: usage: %s 0..5.\n\t \
         0 is for training from scratch\n\t \
         1 is for loading model.dat and testing\n\t \
         2 is for comparing predict1 and predict2\n\t \
         3 is for testing batching\n\t \
-        4 if for testing reordering dataset\n",
+        4 if for testing reordering dataset\n\t \
+        5 is for printing model data\n",
                 argv[0]);
         exit(1);
     }
@@ -199,8 +221,10 @@ int main(int argc, char *argv[]) {
         compare();
     else if(argv[1][0] == '3')
         test_batching();
-    else 
+    else if(argv[1][0] == '4')
         test_reordering_dataset();
+    else 
+        print_model_data();
 
     return 0;
 }
