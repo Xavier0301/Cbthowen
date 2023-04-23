@@ -76,7 +76,7 @@ void load_and_test() {
 
     size_t correct = 0;
     for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
-        size_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        size_t class = model_predict2(&model, MATRIX_AXIS1(binarized_test, sample_it));
         correct += (class == test_labels[sample_it]);
     }
 
@@ -165,7 +165,7 @@ void test_reordering_dataset() {
 
     size_t agree = 0;
 
-    size_t* reordered_sample = (size_t *) calloc(MNIST_IM_SIZE * model.bits_per_input, sizeof(*binarized_test.data));
+    unsigned char* reordered_sample = (unsigned char *) calloc(MNIST_IM_SIZE * model.bits_per_input, sizeof(*binarized_test.data));
 
     for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
         reorder_array(reordered_sample, MATRIX_AXIS1(binarized_test, sample_it), model.input_order, model.num_inputs_total);

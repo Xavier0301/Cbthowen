@@ -177,6 +177,10 @@ size_t model_predict2(model_t* model, element_t* input) {
     // Hash
     perform_hashing(hashes_buffer, model, reorder_buffer);
 
+    return model_predict_backend(model, &hashes_buffer);
+}
+
+size_t model_predict_backend(model_t* model, matrix_t* hashes_buffer) {
     // Calculate popcounts for each discriminators
     entry_t popcounts[model->num_classes];
     for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it)
@@ -184,7 +188,7 @@ size_t model_predict2(model_t* model, element_t* input) {
 
     for(size_t filter_it = 0; filter_it < model->num_filters; ++filter_it) {
         for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it) {
-            entry_t resp = filter_reduction(TENSOR3D_AXIS2(model->data, discr_it, filter_it), MATRIX_AXIS1(hashes_buffer, filter_it), model->filter_hashes);
+            entry_t resp = filter_reduction(TENSOR3D_AXIS2(model->data, discr_it, filter_it), MATRIX_AXIS1(*hashes_buffer, filter_it), model->filter_hashes);
             popcounts[discr_it] += (resp >= model->bleach);
         }
     }
@@ -201,4 +205,3 @@ size_t model_predict2(model_t* model, element_t* input) {
 
     return response_index;
 }
-
