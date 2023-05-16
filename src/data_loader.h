@@ -18,6 +18,7 @@
 #define MNIST_TEST_LABEL "./data/t10k-labels-idx1-ubyte"
 
 #define MNIST_IM_SIZE 784 // 28*28
+#define MNIST_SIDE_LEN 28
 #define MNIST_NUM_TRAIN 60000
 #define MNIST_NUM_TEST 10000
 #define MNIST_LEN_INFO_IMAGE 4
@@ -42,6 +43,7 @@ void binarize_mnist(size_t num_bits);
 void reorder_dataset(bmatrix_t* result, bmatrix_t* dataset, size_t* order, size_t num_samples, size_t num_elements);
 void reorder_binarized_mnist(size_t* order, size_t num_bits);
 
+void print_binarized_mnist_image_raw(size_t index, size_t num_bits);
 void print_binarized_mnist_image(size_t index, size_t num_bits);
 void print_mnist_image(size_t index);
 void print_mnist_image_raw(size_t index);

@@ -111,8 +111,16 @@ void print_binarized_mnist_image(size_t index, size_t num_bits) {
 
         print_binarized_value(value, num_bits);
         if ((j+1) % 28 == 0) putchar('\n');
-    }
+    } 
     putchar('\n'); 
+}
+
+void print_binarized_mnist_image_raw(size_t index, size_t num_bits) {
+    for (size_t j = 0; j < MNIST_IM_SIZE * num_bits; ++j) {
+        char value = *MATRIX(binarized_train, index, j);
+        printf("%d ", value);
+        if ((j+1) % 28 == 0) putchar('\n');
+    }
 }
 
 void print_mnist_image(size_t index) {
@@ -125,11 +133,20 @@ void print_mnist_image_raw(size_t index) {
 
 unsigned char thermometer_encode(unsigned char val, double mean, double std, size_t num_bits, double* skews, unsigned char* encodings) {
     size_t skew_index = 0;
-    for(; skew_index < num_bits - 1 && val > skews[skew_index] * std + mean; ++skew_index);
+    for(; skew_index < num_bits && val > skews[skew_index] * std + mean; ++skew_index);
 
     // printf("val: %d, index: %d\n", val, skew_index);
         
     return encodings[skew_index];
+}
+
+void binarize_sample2(bmatrix_t* result, bmatrix_t* dataset, size_t sample_it, size_t num_bits, double* mean, double* variance, double* skews, unsigned char* encodings) { 
+    for(size_t bit_it = 0; bit_it < num_bits; ++bit_it) {
+        for(size_t offset_it = 0; offset_it < dataset->stride; ++offset_it) {
+            char packed_encoding = thermometer_encode(*MATRIX(*dataset, sample_it, offset_it), mean[offset_it], sqrt(variance[offset_it]), num_bits, skews, encodings);
+            *MATRIX(*result, sample_it, bit_it*dataset->stride + offset_it) = (packed_encoding >> bit_it) & 0x1;
+        }
+    }
 }
 
 void binarize_sample(bmatrix_t* result, bmatrix_t* dataset, size_t sample_it, size_t num_bits, double* mean, double* variance, double* skews, unsigned char* encodings) {
@@ -152,7 +169,7 @@ void binarize_matrix(bmatrix_t* result, bmatrix_t* dataset, size_t sample_size, 
     }
 
     unsigned char encodings[num_bits];
-    for(size_t it = 0; it < num_bits; ++it) {
+    for(size_t it = 0; it <= num_bits; ++it) {
         encodings[it] = (((unsigned char) 0xff) << it) & (((unsigned char) 0xff) >> (8 - num_bits));
         // printf("encoding: "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(encodings[it]));
     }
@@ -164,7 +181,7 @@ void binarize_matrix(bmatrix_t* result, bmatrix_t* dataset, size_t sample_size, 
     bmatrix_variance(variance, dataset, sample_size, num_samples, mean);
 
     for(size_t sample_it = 0; sample_it < num_samples; ++sample_it)
-        binarize_sample(result, dataset, sample_it, num_bits, mean, variance, skews, encodings);
+        binarize_sample2(result, dataset, sample_it, num_bits, mean, variance, skews, encodings);
 }
 
 void binarize_mnist(size_t num_bits) {

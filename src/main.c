@@ -32,7 +32,7 @@ void train() {
     printf("Binarizing dataset\n");
     binarize_mnist(bits_per_input);
 
-    print_binarized_mnist_image(7555, 2);
+    print_binarized_mnist_image_raw(0, 2);
 
     printf("Training\n");
 
@@ -42,17 +42,43 @@ void train() {
             printf("    %zu\n", sample_it);
     }
 
-    printf("Testing\n");
-    model.bleach = 10; // optimal bleaching threshold
+    uint64_t max_entry = 0;
+    for(size_t discr_it = 0; discr_it < model.num_classes; ++discr_it) {
+        for(size_t filter_it = 0; filter_it < model.num_filters; ++filter_it) {
+            for(size_t entry_it = 0; entry_it < model.filter_entries; ++entry_it) {
+                uint64_t el = *TENSOR3D(model.data, discr_it, filter_it, entry_it);
+                if(el > max_entry)
+                    max_entry = el;
+            }
+        }
+    }
+    printf("Max entry: %llu\n", max_entry);
 
-    size_t correct = 0;
-    for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
-        size_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
-        correct += (class == test_labels[sample_it]);
+    printf("Testing to find optimal bleaching threshold\n");
+
+    size_t best_bleach = 0;
+    double best_accuracy = 0;
+    for(size_t bleach = 1; bleach < 20; ++bleach) {
+
+        model.bleach = bleach;
+
+        size_t correct = 0;
+        for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
+            size_t class = model_predict(&model, MATRIX_AXIS1(binarized_test, sample_it));
+            correct += (class == test_labels[sample_it]);
+        }
+
+        double accuracy = ((double) correct) / ((double) MNIST_NUM_TEST);
+        printf("Bleach %zu. Accuracy %zu/%d (%f%%)\n", bleach, correct, MNIST_NUM_TEST, 100 * accuracy);
+
+        if(accuracy >= best_accuracy) {
+            best_bleach = bleach;
+            best_accuracy = accuracy;
+        }
     }
 
-    double accuracy = ((double) correct) / ((double) MNIST_NUM_TEST);
-    printf("Accuracy %zu/%d (%f%%)\n", correct, MNIST_NUM_TEST, 100 * accuracy);
+    model.bleach = best_bleach;
+    printf("Best bleach: %zu (%lf)\n", best_bleach, best_accuracy);
 
     write_model("model.dat", &model);
 }
@@ -72,16 +98,20 @@ void load_and_test() {
 
     print_binarized_mnist_image(7555, 2);
 
-    printf("Testing with bleach %d\n", model.bleach);
+    printf("Testing with bleaches 1-20\n");
 
-    size_t correct = 0;
-    for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
-        size_t class = model_predict2(&model, MATRIX_AXIS1(binarized_test, sample_it));
-        correct += (class == test_labels[sample_it]);
+    for(size_t bleach = 10; bleach < 50; ++bleach) {
+        model.bleach = bleach;
+
+        size_t correct = 0;
+        for(size_t sample_it = 0; sample_it < MNIST_NUM_TRAIN; ++sample_it) {
+            size_t class = model_predict2(&model, MATRIX_AXIS1(binarized_train, sample_it));
+            correct += (class == train_labels[sample_it]);
+        }
+
+        double accuracy = ((double) correct) / ((double) MNIST_NUM_TRAIN);
+        printf("Bleach %zu. Accuracy %zu/%d (%f%%)\n", bleach, correct, MNIST_NUM_TRAIN, 100 * accuracy);
     }
-
-    double accuracy = ((double) correct) / ((double) MNIST_NUM_TEST);
-    printf("Accuracy %zu/%d (%f%%)\n", correct, MNIST_NUM_TEST, 100 * accuracy);
 
 }
 
