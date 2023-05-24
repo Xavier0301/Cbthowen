@@ -22,6 +22,7 @@
 
 #define MNIST_IM_SIZE 784 // 28*28
 #define MNIST_SIDE_LEN 28
+#define INFIMNIST_NUM_SAMPLES 8000000
 #define MNIST_NUM_TRAIN 60000
 #define MNIST_NUM_TEST 10000
 #define MNIST_LEN_INFO_IMAGE 4
@@ -42,3 +43,4 @@ void print_image_raw(bmatrix_t* m, unsigned char* labels, size_t index);
 void print_image(bmatrix_t* m, unsigned char* labels, size_t index);
 
 void fill_input_random(unsigned char* input, size_t input_length);
+

@@ -7,7 +7,7 @@
 #include "model.h"
 #include "tensor.h"
 #include "data_loader.h"
-#include "model_manager.h"
+#include "data_manager.h"
 
 #include "batch.h"
 
@@ -313,6 +313,47 @@ void print_model_data() {
     }
 }
 
+void binarize_and_save() {
+    printf("*BINARIZING AND SAVING*\n");
+    model_t model;
+
+    printf("Loading model\n");
+
+    read_model("model.dat", &model);
+
+    printf("Loading infimnist\n"); 
+    size_t num_samples = MNIST_NUM_TRAIN;
+    bmatrix_t infimnist_patterns;
+    bmatrix_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
+    unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
+    load_infimnist(&infimnist_patterns, infimnist_labels, num_samples);
+
+    printf("Binarizing infimnist dataset with %zu bits per input\n", model.bits_per_input);
+    bmatrix_t binarized_infimnist;
+    bmatrix_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+    binarize_matrix(&binarized_infimnist, &infimnist_patterns, MNIST_IM_SIZE, num_samples, model.bits_per_input);
+
+    printf("Saving binarized infimnist\n");
+    write_dataset("binarized_infimnist.dat", &binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+
+    printf("Loading binarized infimnist into another buffer\n");
+    bmatrix_t binarized_infimnist2;
+    bmatrix_init(&binarized_infimnist2, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+    size_t num_samples_, sample_size_;
+    read_dataset("binarized_infimnist.dat", &binarized_infimnist2, &num_samples_, &sample_size_);
+    assert(num_samples_ == num_samples);
+    assert(sample_size_ == MNIST_IM_SIZE * model.bits_per_input);
+
+    printf("Veryifying that the two buffers are the same\n");
+    size_t agree = 0;
+    for(size_t sample_it = 0; sample_it < num_samples; ++sample_it) {
+        if(memcmp(MATRIX_AXIS1(binarized_infimnist, sample_it), MATRIX_AXIS1(binarized_infimnist2, sample_it), MNIST_IM_SIZE * model.bits_per_input * sizeof(*binarized_infimnist.data)) == 0) {
+            agree += 1;
+        }
+    }
+    printf("Agreeing: %lf%%\n", 100 * ((double) agree) / num_samples);
+}
+
 int main(int argc, char *argv[]) {                              
 
     /* Error Checking */
@@ -323,7 +364,8 @@ int main(int argc, char *argv[]) {
         2 is for comparing predict1 and predict2\n\t \
         3 is for testing batching\n\t \
         4 if for testing reordering dataset\n\t \
-        5 is for printing model data\n",
+        5 is for printing model data\n\t \
+        6 is for binarizing and saving infimnist\n",
                 argv[0]);
         exit(1);
     }
@@ -338,8 +380,22 @@ int main(int argc, char *argv[]) {
         test_batching();
     else if(argv[1][0] == '4')
         test_reordering_dataset();
-    else 
+    else if(argv[1][0] == '5')
         print_model_data();
+    else if(argv[1][0] == '6')
+        binarize_and_save();
+    else {
+        printf("Error: usage: %s 0..5.\n\t \
+        0 is for training from scratch\n\t \
+        1 is for loading model.dat and testing\n\t \
+        2 is for comparing predict1 and predict2\n\t \
+        3 is for testing batching\n\t \
+        4 if for testing reordering dataset\n\t \
+        5 is for printing model data\n\t \
+        6 is for binarizing and saving infimnist\n",
+                argv[0]);
+        exit(1);
+    }
 
     return 0;
 }
