@@ -5,16 +5,19 @@ SRC_NOBINARIZER = $(filter-out src/binarizer.c, $(wildcard src/*.c))
 
 .PHONY: all clean
 
+COMMON_FLAGS := -Wall -Wextra -g
+CC := cc
+
 all: main
 
 main: $(SRC_NOBINARIZER)
-	gcc -g $^ -o $@
+	$(CC) ${COMMON_FLAGS} $^ -o $@
 
 binarizer: $(SRC_NOMAIN)
-	gcc -g $^ -o $@
+	$(CC) ${COMMON_FLAGS} $^ -o $@
 
 lib: $(SRC)
-	gcc -g -fPIC -shared -o cbthowen.so $^
+	$(CC) ${COMMON_FLAGS} -fPIC -shared -o cbthowen.so $^
 
 clean:
 	rm -rf *.o *~ main

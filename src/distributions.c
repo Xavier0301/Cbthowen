@@ -11,7 +11,7 @@ long unif_rand(long max) {
 
     long x;
     do {
-        x = random();
+        x = rand();
         // This is carefully written not to overflow
     } while (num_rand - defect <= (unsigned long)x);
 

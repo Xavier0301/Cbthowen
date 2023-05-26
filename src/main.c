@@ -354,19 +354,78 @@ void binarize_and_save() {
     printf("Agreeing: %lf%%\n", 100 * ((double) agree) / num_samples);
 }
 
-int main(int argc, char *argv[]) {                              
+void load_and_print_binarized() {
+    printf("*LOADING AND PRINTING BINARIZED*\n");
 
-    /* Error Checking */
-    if(argc < 2) {
-        printf("Error: usage: %s 0..5.\n\t \
+    // Load model
+    printf("Loading model\n");
+         
+    model_t model;
+    read_model("model.dat", &model);
+    
+    // Loading binarized dataset
+    printf("Loading dataset\n");
+    const unsigned int num_samples = 300;
+    bmatrix_t binarized_infimnist;
+    bmatrix_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+    size_t num_samples_total, sample_size;
+    read_dataset_partial("./data/binarized8m.dat", &binarized_infimnist, num_samples, &num_samples_total, &sample_size);
+
+    print_binarized_image_raw(&binarized_infimnist, NULL, 0, 2);
+}
+
+void infer_from_binarized_dset() {
+    printf("*INFER FROM BINARIZED DSET*\n");
+
+    // Load model
+    printf("Loading model\n");
+         
+    model_t model;
+    read_model("model.dat", &model);
+    
+    // Loading binarized dataset
+    printf("Loading dataset\n");
+    const unsigned int num_samples = 500000;
+    bmatrix_t binarized_infimnist;
+    bmatrix_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+    size_t num_samples_total, sample_size;
+    read_dataset_partial("./data/binarized8m.dat", &binarized_infimnist, num_samples, &num_samples_total, &sample_size);
+
+    // Loading labels
+    printf("Loading labels\n");
+    unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
+    load_infimnist_labels(infimnist_labels, num_samples);
+
+    // Inference
+    printf("Inference\n");
+    size_t correct = 0;
+    for(size_t sample_it = 0; sample_it < num_samples; ++sample_it) {
+        size_t class = model_predict2(&model, MATRIX_AXIS1(binarized_infimnist, sample_it));
+        correct += (class == infimnist_labels[sample_it]);
+    }
+
+    double accuracy = ((double) correct) / ((double) num_samples);
+    printf("Accuracy %zu/%u (%f%%)\n", correct, num_samples, 100 * accuracy);
+}
+
+int main(int argc, char *argv[]) {  
+
+// Put the error message in a char array:
+    const char error_message[] = "Error: usage: %s 0..7.\n\t \
         0 is for training from scratch\n\t \
         1 is for loading model.dat and testing\n\t \
         2 is for comparing predict1 and predict2\n\t \
         3 is for testing batching\n\t \
         4 if for testing reordering dataset\n\t \
         5 is for printing model data\n\t \
-        6 is for binarizing and saving infimnist\n",
-                argv[0]);
+        6 is for binarizing and saving infimnist\n\t \
+        7 is for loading and printing binarized infimnist\n\t \
+        8 is for infering from binarized infimnist\n";
+
+
+    /* Error Checking */
+    if(argc < 2) {
+        printf(error_message, argv[0]);
         exit(1);
     }
 
@@ -384,16 +443,12 @@ int main(int argc, char *argv[]) {
         print_model_data();
     else if(argv[1][0] == '6')
         binarize_and_save();
+    else if(argv[1][0] == '7')
+        load_and_print_binarized();
+    else if(argv[1][0] == '8')
+        infer_from_binarized_dset();
     else {
-        printf("Error: usage: %s 0..5.\n\t \
-        0 is for training from scratch\n\t \
-        1 is for loading model.dat and testing\n\t \
-        2 is for comparing predict1 and predict2\n\t \
-        3 is for testing batching\n\t \
-        4 if for testing reordering dataset\n\t \
-        5 is for printing model data\n\t \
-        6 is for binarizing and saving infimnist\n",
-                argv[0]);
+        printf(error_message, argv[0]);
         exit(1);
     }
 

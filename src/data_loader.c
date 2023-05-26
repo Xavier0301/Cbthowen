@@ -29,11 +29,13 @@ void read_mnist_file(char* file_path, size_t num_samples, size_t stride, size_t 
 
     if(fd == NULL) printf("Not able to read the file at path %s\n", file_path);
     
-    fread(info, sizeof(uint32_t), len_info, fd);
+    size_t fread_res = fread(info, sizeof(uint32_t), len_info, fd);
+    assert(fread_res > 0);
     assert(num_samples <= info[1]);
     for(size_t it = 0; it < len_info; ++it) reverse_bytes(info + it);
     
-    fread(data, stride, num_samples, fd);
+    fread_res = fread(data, stride, num_samples, fd);
+    assert(fread_res > 0);
 
     fclose(fd);
 }
@@ -62,6 +64,13 @@ void load_infimnist(bmatrix_t* patterns, unsigned char* labels, size_t num_sampl
     load_mnist_file(patterns, labels, INFIMNIST_PATTERNS, INFIMNIST_LABELS, num_samples);
 }
 
+void load_infimnist_labels(unsigned char* labels, size_t num_samples) {
+    uint32_t info_buffer[MNIST_LEN_INFO_LABEL];
+
+    read_mnist_file(INFIMNIST_LABELS, num_samples, 1, MNIST_LEN_INFO_LABEL, labels, info_buffer);  
+    assert(info_buffer[0] == 2049);    
+}
+
 #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BINARY(byte)  \
   ((byte) & 0x80 ? '1' : '0'), \
@@ -83,7 +92,7 @@ void print_pixel(unsigned char value, int raw) {
     }
 }
 
-void print_binarized_value(unsigned char value, size_t num_bits) {
+void print_binarized_value(unsigned char value) {
     char map[2]= " @";
     printf("%c ", map[value - 1]);
 }
@@ -104,14 +113,17 @@ void print_binarized_image(bmatrix_t* m, unsigned char* labels, size_t index, si
         for(size_t b = 1; b < num_bits; ++b)
             value |= (*MATRIX(*m, index, j * num_bits + b) << b);
 
-        print_binarized_value(value, num_bits);
+        print_binarized_value(value);
         if ((j+1) % 28 == 0) putchar('\n');
     } 
     putchar('\n'); 
 }
 
 void print_binarized_image_raw(bmatrix_t* m, unsigned char* labels, size_t index, size_t num_bits) {
-    printf("Binarized image %zu (Label %d) (Binarized)\n", index, labels[index]);
+    if(labels != NULL)
+        printf("Binarized image %zu (Label %d) (Binarized)\n", index, labels[index]);
+    else
+        printf("Binarized image %zu (Binarized)\n", index);
     for (size_t j = 0; j < MNIST_IM_SIZE * num_bits; ++j) {
         char value = *MATRIX(*m, index, j);
         printf("%d ", value);

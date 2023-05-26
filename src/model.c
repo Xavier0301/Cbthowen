@@ -105,7 +105,7 @@ void discriminator_train(model_t* model, size_t discriminator_index, element_t* 
  * @param input Boolean vector of shape (#inputs)
  * @param parameters Vector of shape (#inputs)
  */
-entry_t h3_hash(element_t* input, entry_t* parameters, size_t num_inputs, size_t num_hashes) {
+entry_t h3_hash(element_t* input, entry_t* parameters, size_t num_inputs) {
     entry_t result = parameters[0] * input[0];
     for(size_t j = 1; j < num_inputs; ++j) {
         result ^= parameters[j] * input[j];
@@ -121,7 +121,7 @@ int filter_check_membership(model_t* model, size_t discriminator_index, size_t f
 
     entry_t minimum = -1;
     for(size_t it = 0; it < model->filter_hashes; ++it) {
-        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs, model->filter_hashes);
+        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
         entry = *TENSOR3D(model->data, discriminator_index, filter_index, hash_result);
         if(entry <= minimum) minimum = entry;
     }
@@ -136,14 +136,14 @@ void filter_add_member(model_t* model, size_t discriminator_index, size_t filter
     // Get minimum of all filter hash response
     entry_t minimum = -1;
     for(size_t it = 0; it < model->filter_hashes; ++it) {
-        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs, model->filter_hashes);
+        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
         entry = *TENSOR3D(model->data, discriminator_index, filter_index, hash_result);
         if(entry <= minimum) minimum = entry;
     }
 
     // Increment the value of all minimum entries
     for(size_t it = 0; it < model->filter_hashes; ++it) {
-        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs, model->filter_hashes);
+        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
         entry = *TENSOR3D(model->data, discriminator_index, filter_index, hash_result);
         if(entry == minimum) 
             *TENSOR3D(model->data, discriminator_index, filter_index, hash_result) = minimum + 1;
@@ -164,7 +164,7 @@ void perform_hashing(matrix_t resulting_hashes, model_t* model, element_t* input
     element_t* chunk = input;
     for(size_t chunk_it = 0; chunk_it < model->num_filters; ++chunk_it) {
         for(size_t hash_it = 0; hash_it < model->filter_hashes; ++hash_it) {
-            *MATRIX(resulting_hashes, chunk_it, hash_it) = h3_hash(chunk, MATRIX_AXIS1(model->hash_parameters, hash_it), model->filter_inputs, model->filter_hashes);
+            *MATRIX(resulting_hashes, chunk_it, hash_it) = h3_hash(chunk, MATRIX_AXIS1(model->hash_parameters, hash_it), model->filter_inputs);
         }
         chunk += model->filter_inputs;
     }

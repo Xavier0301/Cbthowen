@@ -32,6 +32,7 @@ void load_mnist_file(bmatrix_t* patterns, unsigned char* labels, char* image_pat
 void load_mnist_train(bmatrix_t* patterns, unsigned char* labels, size_t num_samples);
 void load_mnist_test(bmatrix_t* patterns, unsigned char* labels, size_t num_samples);
 void load_infimnist(bmatrix_t* patterns, unsigned char* labels, size_t num_samples);
+void load_infimnist_labels(unsigned char* labels, size_t num_samples);
 
 void binarize_matrix(bmatrix_t* result, bmatrix_t* dataset, size_t sample_size, size_t num_samples, size_t num_bits);
 
