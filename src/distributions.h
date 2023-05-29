@@ -12,7 +12,7 @@ long unif_rand(long max);
 
 long unif_rand_range(long min, long max);
 
-void shuffle_array(size_t* array, size_t length);
+void shuffle_array(uint16_t* array, size_t length);
 
 /************* GAUSSIAN ***********/
 // Returns a random number sampled from N(0,1)

@@ -9,10 +9,8 @@
 #include "tensor.h"
 #include "distributions.h"
 
-typedef unsigned char element_t;
-
-extern element_t* reorder_buffer;
-extern matrix_t hashes_buffer;
+extern uint8_t* reorder_buffer; // of shape (#Inputs)
+extern u16_matrix_t hashes_buffer; // of shape (#Filters, #Hashes)
 
 typedef struct {
     size_t pad_zeros;
@@ -20,22 +18,22 @@ typedef struct {
     size_t bits_per_input;
     size_t num_classes;
 
-    size_t* input_order; // of shape (#Inputs), with elements in [0; num_inputs_total)
+    uint16_t* input_order; // of shape (#Inputs), with elements in [0; num_inputs_total)
 
     size_t num_filters;
     size_t filter_inputs;
     size_t filter_entries;
     size_t filter_hashes;
     
-    matrix_t hash_parameters; // of shape (#Hashes, #Inputs)
-    unsigned char bleach;
+    u16_matrix_t hash_parameters; // of shape (#Hashes, #Inputs)
+    size_t bleach;
 
-    tensor3d_t data; // of shape (#Discriminators, #Filters, #Entries)
+    u16_tensor3d_t filters; // of shape (#Discriminators, #Filters, #Entries)
 } model_t;
 
-void generate_h3_values(matrix_t* values, size_t num_hashes, size_t num_inputs, size_t num_entries);
+void generate_h3_values(u16_matrix_t values, size_t num_hashes, size_t num_inputs, size_t num_entries);
 
-void reorder_array(element_t* buffer, element_t* input, size_t* order, size_t len);
+void reorder_array(uint8_t* buffer, uint8_t* input, uint16_t* order, size_t len);
 
 /**
  * @brief Initialize a model.
@@ -47,7 +45,7 @@ void reorder_array(element_t* buffer, element_t* input, size_t* order, size_t le
  * @param filter_entries The size of the underlying storage arrays for the filters. Must be a power of two.
  * @param filter_hashes The number of hash functions for each filter.
  */
-void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, unsigned char bleach);
+void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t bleach);
 
 /**
  * @brief Initializes all the buffers in the model. Assumes that the right field values are already attributed (in num_inputs, num_classes, ...)
@@ -62,7 +60,7 @@ void model_init_buffers(model_t* model);
  * @param input A vector of boolean values representing the input sample
  * @return size_t 
  */
-size_t model_predict(model_t* model, element_t* input); 
+size_t model_predict(model_t* model, uint8_t* input); 
 
 /**
  * @brief Performs an inference with the provided input. This uses a two stage prediction model 
@@ -72,7 +70,7 @@ size_t model_predict(model_t* model, element_t* input);
  * @param input A vector of boolean values representing the input sample
  * @return uint64_t 
  */
-size_t model_predict2(model_t* model, element_t* input);
+size_t model_predict2(model_t* model, uint8_t* input);
 
 /**
  * @brief Performs an inference with the provided HASHED input. 
@@ -82,7 +80,7 @@ size_t model_predict2(model_t* model, element_t* input);
  * @param hashes_buffer 
  * @return size_t 
  */
-size_t model_predict_backend(model_t* model, matrix_t* hashes_buffer);
+size_t model_predict_backend(model_t* model, u16_matrix_t hashes_buffer);
 
 
 /**
@@ -91,7 +89,7 @@ size_t model_predict_backend(model_t* model, matrix_t* hashes_buffer);
  * @param input A vector of boolean values representing the input sample
  * @param target The class of the input
  */
-void model_train(model_t* model, element_t* input, uint64_t target);
+void model_train(model_t* model, uint8_t* input, uint64_t target);
 
 /**
  * @brief Performs an inference to generate a response (number of filters which return True)
@@ -101,7 +99,7 @@ void model_train(model_t* model, element_t* input, uint64_t target);
  * @param input A vector of boolean values representing the input sample
  * @return uint64_t 
  */
-uint64_t discriminator_predict(model_t* model, size_t discriminator_index, element_t* input);
+uint64_t discriminator_predict(model_t* model, size_t discriminator_index, uint8_t* input);
 
 /**
  * @brief Performs a training step (updating filter values)
@@ -110,7 +108,7 @@ uint64_t discriminator_predict(model_t* model, size_t discriminator_index, eleme
  * @param discriminator_index The index of the discriminator in the model passed
  * @param input A vector of boolean values representing the input sample
  */
-void discriminator_train(model_t* model, size_t discriminator_index, element_t* input);
+void discriminator_train(model_t* model, size_t discriminator_index, uint8_t* input);
 
 /**
  * @brief Check whether a value is a member of this filter (i.e. possibly seen at least b times)
@@ -122,7 +120,7 @@ void discriminator_train(model_t* model, size_t discriminator_index, element_t* 
  * 
  * @return 1 if input is maybe a member of filter and 0 if input is definitely not a member of filter
  */
-int filter_check_membership(model_t* model, size_t discriminator_index, size_t filter_index, element_t* input);
+int filter_check_membership(model_t* model, size_t discriminator_index, size_t filter_index, uint8_t* input);
 
 /**
  * @brief Performs MIN reduction of the given filter for the given number of hashes
@@ -132,7 +130,7 @@ int filter_check_membership(model_t* model, size_t discriminator_index, size_t f
  * @param filter_hashes 
  * @return entry_t 
  */
-entry_t filter_reduction(entry_t* filter, entry_t* hashes, size_t filter_hashes);
+uint16_t filter_reduction(uint16_t* filter, uint16_t* hashes, size_t filter_hashes);
 
 /**
  * @brief Make the filter learn the input
@@ -142,7 +140,7 @@ entry_t filter_reduction(entry_t* filter, entry_t* hashes, size_t filter_hashes)
  * @param filter_index The filter index to add a member to
  * @param input A bitvector
  */
-void filter_add_member(model_t* model, size_t discriminator_index, size_t filter_index, element_t* input);
+void filter_add_member(model_t* model, size_t discriminator_index, size_t filter_index, uint8_t* input);
 
 /**
  * @brief Hashes the whole input by (1) dividing the input into chunks that go into each filter
@@ -156,6 +154,6 @@ void filter_add_member(model_t* model, size_t discriminator_index, size_t filter
  * @param filter_inputs 
  * @param input 
  */
-void perform_hashing(matrix_t resulting_hashes, model_t* model, element_t* input);
+void perform_hashing(u16_matrix_t resulting_hashes, model_t* model, uint8_t* input);
 
 #endif

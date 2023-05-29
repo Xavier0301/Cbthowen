@@ -1,14 +1,14 @@
 #include "data_loader.h"
 #include "data_manager.h"
 
-void binarize_and_write(size_t num_samples, size_t bits_per_input, bmatrix_t* dataset, char* output_path) {
+void binarize_and_write(size_t num_samples, size_t bits_per_input, u8_matrix_t dataset, char* output_path) {
     printf("Binarizing infimnist dataset with %zu bits per input\n", bits_per_input);
-    bmatrix_t binarized_dset;
-    bmatrix_init(&binarized_dset, num_samples, MNIST_IM_SIZE * bits_per_input);
-    binarize_matrix(&binarized_dset, dataset, MNIST_IM_SIZE, num_samples, bits_per_input);
+    u8_matrix_t binarized_dset;
+    matrix_u8_init(&binarized_dset, num_samples, MNIST_IM_SIZE * bits_per_input);
+    binarize_matrix(binarized_dset, dataset, MNIST_IM_SIZE, num_samples, bits_per_input);
 
     printf("Saving binarized infimnist\n");
-    write_dataset(output_path, &binarized_dset, num_samples, MNIST_IM_SIZE * bits_per_input);
+    write_dataset(output_path, binarized_dset, num_samples, MNIST_IM_SIZE * bits_per_input);
 }
 
 int main(int argc, char *argv[]) {                              
@@ -33,12 +33,12 @@ int main(int argc, char *argv[]) {
         }
 
         printf("Loading mnist_test\n");
-        bmatrix_t mnist_patterns;
-        bmatrix_init(&mnist_patterns, num_samples, MNIST_IM_SIZE);
+        u8_matrix_t mnist_patterns;
+        matrix_u8_init(&mnist_patterns, num_samples, MNIST_IM_SIZE);
         unsigned char* mnist_labels = calloc(num_samples, sizeof(*mnist_labels));
-        load_mnist_test(&mnist_patterns, mnist_labels, num_samples);
+        load_mnist_test(mnist_patterns, mnist_labels, num_samples);
 
-        binarize_and_write(num_samples, bits_per_input, &mnist_patterns, output_path);
+        binarize_and_write(num_samples, bits_per_input, mnist_patterns, output_path);
     } else if(dataset_name[0] == 'i') {
         if(num_samples > 8000000) {
             printf("Error: infimnist has only 8M samples\n");
@@ -46,12 +46,12 @@ int main(int argc, char *argv[]) {
         }
 
         printf("Loading infimnist\n"); 
-        bmatrix_t infimnist_patterns;
-        bmatrix_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
+        u8_matrix_t infimnist_patterns;
+        matrix_u8_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
         unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
-        load_infimnist(&infimnist_patterns, infimnist_labels, num_samples);
+        load_infimnist(infimnist_patterns, infimnist_labels, num_samples);
 
-        binarize_and_write(num_samples, bits_per_input, &infimnist_patterns, output_path);
+        binarize_and_write(num_samples, bits_per_input, infimnist_patterns, output_path);
     } else {
         printf("Error: unknown dataset %s\n", dataset_name);
         return 1;

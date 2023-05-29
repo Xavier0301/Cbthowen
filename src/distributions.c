@@ -23,13 +23,13 @@ long unif_rand_range(long min, long max) {
     return unif_rand(max - min) + min;
 }
 
-void swap(size_t* a, size_t* b) {
+void swap(uint16_t* a, uint16_t* b) {
     size_t tmp = *a;
     *a = *b;
     *b = tmp;
 }
 
-void shuffle_array(size_t* array, size_t length) {
+void shuffle_array(uint16_t* array, size_t length) {
     for(size_t i = 0; i < length; ++i) {
         size_t j = unif_rand(i);
         swap(array + i, array + j);

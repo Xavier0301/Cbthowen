@@ -7,52 +7,91 @@
 
 #include "math.h"
 
-typedef uint32_t entry_t;
+typedef uint32_t u32_t;
+typedef uint16_t u16_t;
+typedef uint8_t u8_t;
 
-typedef struct {
-    size_t axis1;
-    size_t axis2;
-    size_t axis3;
-} tensor_index_t;
+#define DATA_TYPE(symbol) symbol##_t
 
-typedef struct {
-    size_t stride1;
-    size_t stride2;
-    entry_t* data;
-} tensor3d_t;
+#define TENSOR_TYPE_(symbol) symbol##_tensor3d_t_
+#define TENSOR_TYPE(symbol) symbol##_tensor3d_t
+
+#define DEFINE_TENSOR_STRUCT(symbol) \
+    typedef struct TENSOR_TYPE_(symbol) { \
+        size_t stride1; \
+        size_t stride2; \
+        DATA_TYPE(symbol)* data; \
+    } TENSOR_TYPE(symbol)
+
+DEFINE_TENSOR_STRUCT(u16);
 
 #define TENSOR3D_AXIS1(t, i) ((t).data + i * (t).stride1)
 #define TENSOR3D_AXIS2(t, i, j) (TENSOR3D_AXIS1(t, i) + j * (t).stride2)
 #define TENSOR3D(t, i, j, k) (TENSOR3D_AXIS2(t, i, j) + k)
-#define TENSOR3D_(t, index) (TENSOR3D(t, index.axis1, index.axis2, index.axis2))
 
-void tensor_init(tensor3d_t* t, size_t shape1, size_t shape2, size_t shape3);
+#define TENSOR_INIT(t, shape1, shape2, shape3, type) \
+    do { \
+        t->stride1 = shape2 * shape3; \
+        t->stride2 = shape3; \
+        t->data = (type*) calloc(shape1 * shape2 * shape3, sizeof(*t->data)); \
+    } while(0)
 
-typedef struct {
-    size_t axis1;
-    size_t axis2;
-} matrix_index_t;
+#define TENSOR_PRINT(t, shape1, shape2, shape3) \
+    do { \
+        for(size_t i = 0; i < shape1; ++i) { \
+            for(size_t j = 0; j < shape2; ++j) { \
+                for(size_t k = 0; k < shape3; ++k) \
+                    printf("%u ", *TENSOR3D(t, i, j, k)); \
+                printf("\n"); \
+            } \
+            printf("\n"); \
+        } \
+    } while(0)
 
-typedef struct {
-    size_t stride;
-    entry_t* data;
-} matrix_t;
+#define DEFINE_TENSOR_INIT(symbol) \
+    void tensor_##symbol##_init(TENSOR_TYPE(symbol)* t, size_t shape1, size_t shape2, size_t shape3);
+
+DEFINE_TENSOR_INIT(u16);
+
+#define MAT_TYPE_(symbol) symbol##_matrix_t_
+#define MAT_TYPE(symbol) symbol##_matrix_t
+
+#define DEFINE_MATRIX_STRUCT(symbol) \
+    typedef struct MAT_TYPE_(symbol) { \
+        size_t stride; \
+        DATA_TYPE(symbol)* data; \
+    } MAT_TYPE(symbol)
+
+DEFINE_MATRIX_STRUCT(u32);
+DEFINE_MATRIX_STRUCT(u16);
+DEFINE_MATRIX_STRUCT(u8);
 
 #define MATRIX_AXIS1(t, i) ((t).data + i * (t).stride)
 #define MATRIX(t, i, j) (MATRIX_AXIS1(t, i) + j)
-#define MATRIX_(t, index) (MATRIX(t, index.axis1, index.axis2))
 
-void matrix_init(matrix_t* m, size_t rows, size_t cols);
-void matrix_print(matrix_t* m, size_t rows, size_t cols);
+#define MATRIX_INIT(m, rows, cols, type) \
+    do { \
+        (m)->stride = cols; \
+        (m)->data = (type*) calloc(rows * cols, sizeof(*(m)->data)); \
+    } while(0)
 
-typedef struct {
-    size_t stride;
-    unsigned char* data;
-} bmatrix_t;
+#define MATRIX_PRINT(m, rows, cols) \
+    do { \
+        for(size_t i = 0; i < rows; ++i) { \
+            for(size_t j = 0; j < cols; ++j) \
+                printf("%u ", *MATRIX(*m, i, j)); \
+            printf("\n"); \
+        } \
+    } while(0)
 
-void bmatrix_init(bmatrix_t* m, size_t rows, size_t cols);
+#define DEFINE_MATRIX_INIT(symbol) \
+    void matrix_##symbol##_init(MAT_TYPE(symbol)* m, size_t rows, size_t cols)
 
-void bmatrix_mean(double* mean, bmatrix_t* dataset, size_t sample_size, size_t num_samples);
-void bmatrix_variance(double* variance, bmatrix_t* dataset, size_t sample_size, size_t num_samples, double* mean);
+DEFINE_MATRIX_INIT(u32);
+DEFINE_MATRIX_INIT(u16);
+DEFINE_MATRIX_INIT(u8);
+
+void matrix_u8_mean(double* mean, u8_matrix_t dataset, size_t sample_size, size_t num_samples);
+void matrix_u8_variance(double* variance, u8_matrix_t dataset, size_t sample_size, size_t num_samples, double* mean);
 
 #endif
