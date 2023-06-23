@@ -8,13 +8,6 @@ void reorder_array(uint8_t* result, uint8_t* input, uint16_t* order, size_t len)
         result[it] = input[order[it]];
 }
 
-// void reorder_by_blocks(uint8_t* result, uint8_t* input, uint16_t* order, size_t len, size_t block_size) {
-//     for(size_t it = 0; it < len; it += block_size) {
-//         size_t dyn_len = (it + block_size > len) ? len - it : block_size;
-//         reorder_array(result + it, input + it, order + it, dyn_len);
-//     }
-// }
-
 void randomize_input_order(uint16_t* input_order, size_t len, size_t block_size) {
     for(size_t it = 0; it < len; ++it) {
         input_order[it] = it;
