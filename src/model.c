@@ -8,11 +8,22 @@ void reorder_array(uint8_t* result, uint8_t* input, uint16_t* order, size_t len)
         result[it] = input[order[it]];
 }
 
-void randomize_input_order(uint16_t* input_order, size_t len) {
+// void reorder_by_blocks(uint8_t* result, uint8_t* input, uint16_t* order, size_t len, size_t block_size) {
+//     for(size_t it = 0; it < len; it += block_size) {
+//         size_t dyn_len = (it + block_size > len) ? len - it : block_size;
+//         reorder_array(result + it, input + it, order + it, dyn_len);
+//     }
+// }
+
+void randomize_input_order(uint16_t* input_order, size_t len, size_t block_size) {
     for(size_t it = 0; it < len; ++it) {
         input_order[it] = it;
     }
-    shuffle_array(input_order, len);
+    
+    for(size_t it = 0; it < len; it += block_size) {
+        size_t dyn_len = (it + block_size > len) ? len - it : block_size;
+        shuffle_array(input_order + it, dyn_len);
+    }
 }
 
 void generate_h3_values(u16_matrix_t values, size_t num_hashes, size_t num_inputs, size_t num_entries) {
@@ -23,7 +34,7 @@ void generate_h3_values(u16_matrix_t values, size_t num_hashes, size_t num_input
     }
 }
 
-void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t bleach) {
+void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t bleach, size_t block_size) {
     model->pad_zeros = (((num_inputs / filter_inputs) * filter_inputs) - num_inputs) % filter_inputs;
     model->num_inputs_total = num_inputs + model->pad_zeros;
     model->bits_per_input = bits_per_input;
@@ -36,12 +47,14 @@ void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t fi
 
     model->bleach = bleach;
 
+    model->block_size = block_size == 0 ? model->num_inputs_total : block_size;
+
     model_init_buffers(model);
 }
 
 void model_init_buffers(model_t* model){
     model->input_order = calloc(model->num_inputs_total, sizeof(*model->input_order));
-    randomize_input_order(model->input_order, model->num_inputs_total);
+    randomize_input_order(model->input_order, model->num_inputs_total, model->block_size);
 
     tensor_u16_init(&model->filters, model->num_classes, model->num_filters, model->filter_entries);
     
@@ -204,4 +217,15 @@ size_t model_predict_backend(model_t* model, u16_matrix_t hashes_buffer) {
     }
 
     return response_index;
+}
+
+void model_bleach(model_t* model) {
+    for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it) {
+        for(size_t filter_it = 0; filter_it < model->num_filters; ++filter_it) {
+            for(size_t entry_it = 0; entry_it < model->filter_entries; ++entry_it) {
+                uint16_t* entry = TENSOR3D(model->filters, discr_it, filter_it, entry_it);
+                *entry = (*entry >= model->bleach);
+            }
+        }
+    }
 }

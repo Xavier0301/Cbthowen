@@ -18,6 +18,7 @@ typedef struct {
     size_t bits_per_input;
     size_t num_classes;
 
+    size_t block_size;
     uint16_t* input_order; // of shape (#Inputs), with elements in [0; num_inputs_total)
 
     size_t num_filters;
@@ -45,7 +46,7 @@ void reorder_array(uint8_t* buffer, uint8_t* input, uint16_t* order, size_t len)
  * @param filter_entries The size of the underlying storage arrays for the filters. Must be a power of two.
  * @param filter_hashes The number of hash functions for each filter.
  */
-void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t bleach);
+void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t bleach, size_t block_size);
 
 /**
  * @brief Initializes all the buffers in the model. Assumes that the right field values are already attributed (in num_inputs, num_classes, ...)
@@ -155,5 +156,7 @@ void filter_add_member(model_t* model, size_t discriminator_index, size_t filter
  * @param input 
  */
 void perform_hashing(u16_matrix_t resulting_hashes, model_t* model, uint8_t* input);
+
+void model_bleach(model_t* model);
 
 #endif

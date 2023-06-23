@@ -16,7 +16,7 @@ void read_model(const char* filename, model_t* model) {
     READ_FIELD(model, filter_hashes, f);
     READ_FIELD(model, bleach, f);
 
-    model_init(model, model->num_inputs_total, model->num_classes, model->filter_inputs, model->filter_entries, model->filter_hashes, model->bits_per_input, model->bleach);
+    model_init(model, model->num_inputs_total, model->num_classes, model->filter_inputs, model->filter_entries, model->filter_hashes, model->bits_per_input, model->bleach, 0);
 
     READ_BUFFER(model, input_order, model->num_inputs_total, f);
 

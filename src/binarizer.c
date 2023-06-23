@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
 
         binarize_and_write(num_samples, bits_per_input, mnist_patterns, output_path);
     } else if(dataset_name[0] == 'i') {
-        if(num_samples > 8000000) {
-            printf("Error: infimnist has only 8M samples\n");
+        if(num_samples > 8100000) {
+            printf("Error: infimnist has only 8M1 samples\n");
             return 1;
         }
 

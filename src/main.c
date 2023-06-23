@@ -15,17 +15,17 @@ void train() {
     printf("*TRAINING*\n");
     model_t model;
 
-    size_t input_size = 784;
-    size_t bits_per_input = 2;
+    size_t input_size = 784; 
+    size_t bits_per_input = 2; // 8
     size_t num_inputs = input_size * bits_per_input;
 
     size_t num_classes = 10;
 
-    size_t filter_inputs = 28;
-    size_t filter_entries = 1024;
-    size_t filter_hashes = 2;
+    size_t filter_inputs = 28; // 49 or 56
+    size_t filter_entries = 1024; // 8192
+    size_t filter_hashes = 2; // 4
 
-    model_init(&model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes, bits_per_input, 1);
+    model_init(&model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes, bits_per_input, 1, 0);
 
     printf("Loading test dataset\n");
     size_t num_test = MNIST_NUM_TEST;
@@ -385,7 +385,7 @@ void infer_from_binarized_dset() {
     
     // Loading binarized dataset
     printf("Loading dataset\n");
-    const unsigned int num_samples = 2;
+    const unsigned int num_samples = 100000;
     u8_matrix_t binarized_infimnist;
     matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
     size_t num_samples_total, sample_size;
@@ -410,10 +410,46 @@ void infer_from_binarized_dset() {
     printf("Accuracy %zu/%u (%f%%)\n", correct, num_samples, 100 * accuracy);
 }
 
+void load_mnist() {
+    printf("*LOADING MNIST*\n");
+
+    size_t num_samples = MNIST_NUM_TRAIN;
+    u8_matrix_t infimnist_patterns;
+    matrix_u8_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
+    unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
+    load_infimnist(infimnist_patterns, infimnist_labels, num_samples);
+}
+
+void test_sparsity() {
+    printf("*TEST SPARSITY*\n");
+
+    // Load model
+    printf("Loading model\n");
+         
+    model_t model;
+    read_model("model.dat", &model);
+
+    model_bleach(&model);
+
+    size_t total_entries = model.num_classes * model.num_filters * model.filter_entries;
+    size_t num_nonzero = 0;
+    for(size_t discr_it = 0; discr_it < model.num_classes; ++discr_it) {
+        for(size_t filter_it = 0; filter_it < model.num_filters; ++filter_it) {
+            for(size_t entry_it = 0; entry_it < model.filter_entries; ++entry_it) {
+                uint16_t entry = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
+                if(entry != 0)
+                    num_nonzero += 1;
+            }
+        }
+    }
+
+    printf("Sparsity: %lf%%\n", 100 * ((double) num_nonzero) / total_entries);
+}
+
 int main(int argc, char *argv[]) {  
 
 // Put the error message in a char array:
-    const char error_message[] = "Error: usage: %s 0..7.\n\t \
+    const char error_message[] = "Error: usage: %s X\n\t \
         0 is for training from scratch\n\t \
         1 is for loading model.dat and testing\n\t \
         2 is for comparing predict1 and predict2\n\t \
@@ -422,7 +458,9 @@ int main(int argc, char *argv[]) {
         5 is for printing model data\n\t \
         6 is for binarizing and saving infimnist\n\t \
         7 is for loading and printing binarized infimnist\n\t \
-        8 is for infering from binarized infimnist\n";
+        8 is for infering from binarized infimnist\n\t \
+        9 is for loading mnist\n\t \
+        a is for testing sparsity\n";
 
 
     /* Error Checking */
@@ -449,6 +487,10 @@ int main(int argc, char *argv[]) {
         load_and_print_binarized();
     else if(argv[1][0] == '8')
         infer_from_binarized_dset();
+    else if(argv[1][0] == '9')
+        load_mnist();
+    else if(argv[1][0] == 'a')
+        test_sparsity();
     else {
         printf(error_message, argv[0]);
         exit(1);
