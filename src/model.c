@@ -1,5 +1,7 @@
 #include "model.h"
 
+#include "time.h"
+
 uint8_t* reorder_buffer;
 u16_matrix_t hashes_buffer; // used in predict2
 
@@ -47,6 +49,8 @@ void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t fi
 
 void model_init_buffers(model_t* model){
     model->input_order = calloc(model->num_inputs_total, sizeof(*model->input_order));
+    srand(time(NULL));
+
     randomize_input_order(model->input_order, model->num_inputs_total, model->block_size);
 
     tensor_u16_init(&model->filters, model->num_classes, model->num_filters, model->filter_entries);
@@ -125,7 +129,7 @@ int filter_check_membership(model_t* model, size_t discriminator_index, size_t f
     uint16_t hash_result;
     uint16_t entry;
 
-    uint16_t minimum = -1;
+    uint16_t minimum = 0xffff;
     for(size_t it = 0; it < model->filter_hashes; ++it) {
         hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
         entry = *TENSOR3D(model->filters, discriminator_index, filter_index, hash_result);
@@ -140,11 +144,11 @@ void filter_add_member(model_t* model, size_t discriminator_index, size_t filter
     uint16_t entry;
 
     // Get minimum of all filter hash response
-    uint16_t minimum = -1;
+    uint16_t minimum = 0xffff;
     for(size_t it = 0; it < model->filter_hashes; ++it) {
         hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
         entry = *TENSOR3D(model->filters, discriminator_index, filter_index, hash_result);
-        if(entry <= minimum) minimum = entry;
+        if(entry < minimum) minimum = entry;
     }
 
     // Increment the value of all minimum entries
@@ -157,10 +161,10 @@ void filter_add_member(model_t* model, size_t discriminator_index, size_t filter
 }
 
 uint16_t filter_reduction(uint16_t* filter, uint16_t* hashes, size_t filter_hashes) {
-    uint16_t min = -1;
+    uint16_t min = 0xffff;
     for(size_t it = 0; it < filter_hashes; ++it) {
         uint16_t entry = filter[hashes[it]];
-        if(entry <= min) min = entry;
+        if(entry < min) min = entry;
     }
 
     return min;
@@ -203,7 +207,7 @@ size_t model_predict_backend(model_t* model, u16_matrix_t hashes_buffer) {
     size_t response_index = 0;
     uint16_t max_popcount = 0;
     for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it) {
-        if(popcounts[discr_it] >= max_popcount) {
+        if(popcounts[discr_it] > max_popcount) {
             max_popcount = popcounts[discr_it];
             response_index = discr_it;
         }

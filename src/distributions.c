@@ -1,36 +1,30 @@
 #include "distributions.h"
 
 /************* UNIFORM ***********/
-long unif_rand(long max) {
-    unsigned long
-        // max <= RAND_MAX < ULONG_MAX, so this is okay.
-        num_bins = (unsigned long) max + 1,
-        num_rand = (unsigned long) RAND_MAX + 1,
-        bin_size = num_rand / num_bins,
-        defect   = num_rand % num_bins;
+// return a random number between 0 and max inclusive.
+uint32_t unif_rand(uint32_t max) {
+    uint32_t divisor = RAND_MAX / (max + 1);
+    uint32_t retval;
 
-    long x;
-    do {
-        x = rand();
-        // This is carefully written not to overflow
-    } while (num_rand - defect <= (unsigned long)x);
+    do { 
+        retval = rand() / divisor;
+    } while (retval > max);
 
-    // Truncated division is intentional
-    return x / bin_size;
+    return retval;
 }
 
-long unif_rand_range(long min, long max) {
+uint32_t unif_rand_range(uint32_t min, uint32_t max) {
     return unif_rand(max - min) + min;
 }
 
 void swap(uint16_t* a, uint16_t* b) {
-    size_t tmp = *a;
+    uint16_t tmp = *a;
     *a = *b;
     *b = tmp;
 }
 
 void shuffle_array(uint16_t* array, size_t length) {
-    for(size_t i = 0; i < length; ++i) {
+    for(size_t i = length - 1; i >= 1; --i) {
         size_t j = unif_rand(i);
         swap(array + i, array + j);
     }

@@ -163,7 +163,7 @@ void print_image_raw(u8_matrix_t m, uint8_t* labels, size_t index) {
 
 uint8_t thermometer_encode(uint8_t val, double mean, double std, size_t num_bits, double* skews, uint8_t* encodings) {
     size_t skew_index = 0;
-    for(; skew_index < num_bits && val > skews[skew_index] * std + mean; ++skew_index);
+    for(; skew_index < num_bits && val >= skews[skew_index] * std + mean; ++skew_index);
 
     // printf("val: %d, index: %d\n", val, skew_index);
         
@@ -191,16 +191,43 @@ void binarize_sample(u8_matrix_t result, u8_matrix_t dataset, size_t sample_it, 
     }
 }
 
-void binarize_matrix(u8_matrix_t result, u8_matrix_t dataset, size_t sample_size, size_t num_samples, size_t num_bits) {
-    double skews[num_bits - 1];
-    for(size_t it = 1; it < num_bits; ++it) {
-        skews[it] = gauss_inv((((double) it)) / (((double) num_bits)));
+void binarize_matrix_meanvar(u8_matrix_t result, u8_matrix_t dataset, double* mean, double* variance, size_t sample_size, size_t num_samples, size_t num_bits) {
+    double skews[num_bits];
+    for(size_t it = 0; it < num_bits; ++it) {
+        skews[it] = gauss_inv((((double) (it + 1))) / (((double) num_bits + 1)));
         // printf("skew: %lf\n", skews[it]);
     }
 
-    uint8_t encodings[num_bits];
-    for(size_t it = 0; it <= num_bits; ++it) {
-        encodings[it] = (((uint8_t) 0xff) << it) & (((uint8_t) 0xff) >> (8 - num_bits));
+    uint8_t encodings[9] = { 
+        0b00000000, 0b00000001, 0b00000011, 
+        0b00000111, 0b00001111, 0b00011111,
+        0b00111111, 0b01111111, 0b11111111
+    };
+
+    for(size_t sample_it = 0; sample_it < num_samples; ++sample_it)
+        binarize_sample2(result, dataset, sample_it, num_bits, mean, variance, skews, encodings);
+}
+
+void binarize_matrix(u8_matrix_t result, u8_matrix_t dataset, size_t sample_size, size_t num_samples, size_t num_bits) {
+    double skews[num_bits];
+    for(size_t it = 0; it < num_bits; ++it) {
+        skews[it] = gauss_inv((((double) (it + 1))) / (((double) num_bits + 1)));
+        // printf("skew: %lf\n", skews[it]);
+    }
+
+    uint8_t encodings[9] = {
+        0b00000000,
+        0b00000001,
+        0b00000011,
+        0b00000111,
+        0b00001111,
+        0b00011111,
+        0b00111111,
+        0b01111111,
+        0b11111111
+    };
+    for(size_t it = 0; it < num_bits + 1; ++it) {
+        // encodings[it] = (((uint8_t) 0xff) << it) & (((uint8_t) 0xff) >> (8 - num_bits));
         // printf("encoding: "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(encodings[it]));
     }
 
@@ -209,6 +236,20 @@ void binarize_matrix(u8_matrix_t result, u8_matrix_t dataset, size_t sample_size
 
     matrix_u8_mean(mean, dataset, sample_size, num_samples);
     matrix_u8_variance(variance, dataset, sample_size, num_samples, mean);
+
+    // printf("Mean:");
+    // for(size_t it = 0; it < sample_size; ++it) {
+    //     if(it % 28 == 0)
+    //         printf("\n");
+    //     printf("%3.1f ", mean[it] / 255.0);
+    // }
+
+    // printf("\nVariance:");
+    // for(size_t it = 0; it < sample_size; ++it) {
+    //     if(it % 28 == 0)
+    //         printf("\n");
+    //     printf("%3.1f ", sqrt(variance[it]) / 255.0);
+    // }
 
     for(size_t sample_it = 0; sample_it < num_samples; ++sample_it)
         binarize_sample2(result, dataset, sample_it, num_bits, mean, variance, skews, encodings);

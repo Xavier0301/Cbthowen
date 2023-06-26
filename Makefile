@@ -20,7 +20,7 @@ binarizer: $(SRC_ONLYBINARIZER)
 trainer: $(SRC_ONLYTRAINER)
 	$(CC) ${COMMON_FLAGS} $^ -o $@
 
-lib: $(SRC)
+lib: $(SRC_ONLYMAIN)
 	$(CC) ${COMMON_FLAGS} -fPIC -shared -o cbthowen.so $^
 
 clean:

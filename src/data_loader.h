@@ -39,6 +39,7 @@ void load_infimnist_offset(u8_matrix_t patterns, uint8_t* labels, size_t num_sam
 void load_infimnist_labels_offset(uint8_t* labels, size_t num_samples, size_t offset);
 
 void binarize_matrix(u8_matrix_t result, u8_matrix_t dataset, size_t sample_size, size_t num_samples, size_t num_bits);
+void binarize_matrix_meanvar(u8_matrix_t result, u8_matrix_t dataset, double* mean, double* variance, size_t sample_size, size_t num_samples, size_t num_bits);
 
 void reorder_dataset(u8_matrix_t result, u8_matrix_t dataset, uint16_t* order, size_t num_samples, size_t num_elements);
 

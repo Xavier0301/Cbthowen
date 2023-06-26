@@ -9,9 +9,9 @@
 #endif
 
 /************* UNIFORM ***********/
-long unif_rand(long max);
+uint32_t unif_rand(uint32_t max);
 
-long unif_rand_range(long min, long max);
+uint32_t unif_rand_range(uint32_t min, uint32_t max);
 
 void shuffle_array(uint16_t* array, size_t length);
 

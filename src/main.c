@@ -358,20 +358,23 @@ void load_and_print_binarized() {
     printf("*LOADING AND PRINTING BINARIZED*\n");
 
     // Load model
-    printf("Loading model\n");
+    size_t bits_per_input = 2;
+    printf("Bits per input %zu\n", bits_per_input);
          
-    model_t model;
-    read_model("model.dat", &model);
-    
-    // Loading binarized dataset
-    printf("Loading dataset\n");
-    const unsigned int num_samples = 300;
-    u8_matrix_t binarized_infimnist;
-    matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
-    size_t num_samples_total, sample_size;
-    read_dataset_partial("./data/binarized8m.dat", binarized_infimnist, num_samples, &num_samples_total, &sample_size);
+    printf("Loading infimnist\n"); 
+    size_t num_samples = MNIST_NUM_TRAIN;
+    u8_matrix_t infimnist_patterns;
+    matrix_u8_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
+    unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
+    load_infimnist(infimnist_patterns, infimnist_labels, num_samples);
 
-    print_binarized_image_raw(binarized_infimnist, NULL, 0, 2);
+    printf("Binarizing infimnist dataset with %zu bits per input\n", bits_per_input);
+    u8_matrix_t binarized_infimnist;
+    matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * bits_per_input);
+    binarize_matrix(binarized_infimnist, infimnist_patterns, MNIST_IM_SIZE, num_samples, bits_per_input);
+
+    for(size_t idx = 0; idx < 5; ++idx)
+        print_binarized_image_raw(binarized_infimnist, infimnist_labels, idx, bits_per_input);
 }
 
 void infer_from_binarized_dset() {
