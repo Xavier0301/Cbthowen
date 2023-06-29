@@ -9,27 +9,30 @@
 #include "data_loader.h"
 #include "data_manager.h"
 
-void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t block_size) {
+void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t block_size, size_t bleach_max) {
     double train_val_ratio = 0.9;
 
     printf("*TRAINING*\n");
     model_t model;
 
-    size_t input_size = 784; 
-    size_t num_inputs = input_size * bits_per_input;
+    model_init_params_t params = {
+        .num_classes = 10,
 
-    size_t num_classes = 10;
+        .num_inputs = MNIST_IM_SIZE * bits_per_input,
+        .bits_per_input = bits_per_input,
 
-    model_init(&model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes, bits_per_input, 1, block_size);
+        .block_size = block_size,
 
-    printf("Order:\n");
-    for(size_t it = 0; it < 10; ++it) {
-        printf("%hu ", model.input_order[it]);
-    }
+        .filter_hashes = filter_hashes,
+        .filter_inputs = filter_inputs,
+        .filter_entries = filter_entries,
+    };
+
+    model_init(&model, &params);
 
     size_t num_test = MNIST_NUM_TEST;
     printf("Loading test dataset (%zu)\n", num_test);
-    u8_matrix_t test_patterns;
+    mat_u8 test_patterns;
     matrix_u8_init(&test_patterns, num_test, MNIST_IM_SIZE);
     unsigned char* test_labels = calloc(num_test, sizeof(*test_labels));
     load_mnist_test(test_patterns, test_labels, num_test);
@@ -39,7 +42,7 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
     size_t num_val = num_total - num_train;
 
     printf("Loading total train dataset (%zu)\n", num_total);
-    u8_matrix_t tmp_train_patterns;
+    mat_u8 tmp_train_patterns;
     matrix_u8_init(&tmp_train_patterns, num_total, MNIST_IM_SIZE);
     unsigned char* tmp_train_labels = calloc(num_total, sizeof(*tmp_train_labels));
     load_infimnist(tmp_train_patterns, tmp_train_labels, num_total);
@@ -48,22 +51,22 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
     double mean[MNIST_IM_SIZE];
     double variance[MNIST_IM_SIZE];
 
-    matrix_u8_mean(mean, tmp_train_patterns, MNIST_IM_SIZE, num_total);
-    matrix_u8_variance(variance, tmp_train_patterns, MNIST_IM_SIZE, num_total, mean);
+    mat_u8_mean(mean, tmp_train_patterns, MNIST_IM_SIZE, num_total);
+    mat_u8_variance(variance, tmp_train_patterns, MNIST_IM_SIZE, num_total, mean);
 
-    u8_matrix_t binarized_tmp_train;
+    mat_u8 binarized_tmp_train;
     matrix_u8_init(&binarized_tmp_train, num_total, MNIST_IM_SIZE * bits_per_input);
     binarize_matrix_meanvar(
         binarized_tmp_train, 
         tmp_train_patterns, 
         mean, variance,
-        MNIST_IM_SIZE, num_total, bits_per_input);
+        num_total, bits_per_input);
 
-    u8_matrix_t binarized_train = { 
+    mat_u8 binarized_train = { 
         .stride = binarized_tmp_train.stride, 
         .data = binarized_tmp_train.data
     };
-    u8_matrix_t binarized_val = { 
+    mat_u8 binarized_val = { 
         .stride = binarized_tmp_train.stride, 
         .data = binarized_tmp_train.data + num_train * binarized_tmp_train.stride
     };
@@ -72,13 +75,13 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
     unsigned char* val_labels = tmp_train_labels + num_train;
 
     printf("Binarizing test dataset\n"); 
-    u8_matrix_t binarized_test;
+    mat_u8 binarized_test;
     matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * bits_per_input);
     binarize_matrix_meanvar(
         binarized_test, 
         test_patterns, 
         mean, variance,
-        MNIST_IM_SIZE, num_test, bits_per_input);
+        num_test, bits_per_input);
 
 
     // print_binarized_image(&binarized_test, test_labels, 0, 2);
@@ -93,11 +96,11 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
             printf("    %zu\n", sample_it);
     }
 
-    uint64_t max_entry = 0;
-    for(size_t discr_it = 0; discr_it < model.num_classes; ++discr_it) {
-        for(size_t filter_it = 0; filter_it < model.num_filters; ++filter_it) {
-            for(size_t entry_it = 0; entry_it < model.filter_entries; ++entry_it) {
-                uint64_t el = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
+    u64 max_entry = 0;
+    for(size_t discr_it = 0; discr_it < model.p.num_classes; ++discr_it) {
+        for(size_t filter_it = 0; filter_it < model.p.num_filters; ++filter_it) {
+            for(size_t entry_it = 0; entry_it < model.p.filter_entries; ++entry_it) {
+                u64 el = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
                 if(el > max_entry)
                     max_entry = el;
             }
@@ -109,9 +112,9 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
 
     size_t best_bleach = 0;
     double best_accuracy = 0;
-    for(size_t bleach = 1; bleach < 25; bleach+=1) {
+    for(size_t bleach = 1; bleach < bleach_max; bleach+=1) {
 
-        model.bleach = bleach;
+        model.p.bleach = bleach;
 
         size_t correct = 0;
         for(size_t sample_it = 0; sample_it < num_val; ++sample_it) {
@@ -128,7 +131,7 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
         }
     }
 
-    model.bleach = best_bleach;
+    model.p.bleach = best_bleach;
     printf("Best bleach: %zu (%lf)\n", best_bleach, best_accuracy);
 
     printf("Accuracy on test set\n");
@@ -140,14 +143,12 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
 
     double accuracy = ((double) correct) / ((double) num_test);
     printf("Test accuracy %zu/%zu (%f%%)\n", correct, num_test, 100 * accuracy);
-
-    write_model("model.dat", &model);
 }
 
 int main(int argc, char *argv[]) {                              
-    if(argc < 5) {
-        printf("Error: usage: %s filter_inputs filter_entries filter_hashes bits_per_input block_size (0 for max size)\n", argv[0]);
-        printf("\tExample usage: %s 28 1024 2 2 0\n", argv[0]);
+    if(argc < 7) {
+        printf("Error: usage: %s filter_inputs filter_entries filter_hashes bits_per_input block_size (0 for max size) bleach_max\n", argv[0]);
+        printf("\tExample usage: %s 28 1024 2 2 0 12\n", argv[0]);
 
         return 1;
     }
@@ -157,8 +158,9 @@ int main(int argc, char *argv[]) {
     size_t filter_hashes = atoi(argv[3]);
     size_t bits_per_input = atoi(argv[4]);
     size_t block_size = atoi(argv[5]);
+    size_t bleach_max = atoi(argv[6]);
 
-    printf("Training with parameters filter_inputs=%zu, filter_entries=%zu, filter_hashes=%zu, bits_per_input=%zu, block_size=%zu\n", filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size);
+    printf("Training with parameters filter_inputs=%zu, filter_entries=%zu, filter_hashes=%zu, bits_per_input=%zu, block_size=%zu, bleach=..%zu\n", filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size, bleach_max);
 
-    train(filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size);
+    train(filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size, bleach_max);
 }

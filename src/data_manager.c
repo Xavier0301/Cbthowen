@@ -4,29 +4,56 @@
 #define READ_FIELD(structure, name, fp) FREAD_CHECK(&(structure)->name, sizeof((structure)->name), 1, fp)
 #define READ_BUFFER(structure, name, num, fp) FREAD_CHECK((structure)->name, sizeof(*(structure)->name), num, fp)
 
+void read_model_params(FILE* f, model_params_t* params) {
+    READ_FIELD(params, num_classes, f);
+    READ_FIELD(params, num_filters, f);
+
+    READ_FIELD(params, pad_zeros, f);
+    READ_FIELD(params, num_inputs_total, f);
+    READ_FIELD(params, bits_per_input, f);
+
+    READ_FIELD(params, block_size, f);
+
+    READ_FIELD(params, filter_hashes, f);
+    READ_FIELD(params, filter_inputs, f);
+    READ_FIELD(params, filter_entries, f);
+
+    READ_FIELD(params, bleach, f);
+}
+
 void read_model(const char* filename, model_t* model) {
     FILE* f = fopen(filename, "r");
 
-    READ_FIELD(model, pad_zeros, f);
-    READ_FIELD(model, num_inputs_total, f);
-    READ_FIELD(model, bits_per_input, f);
-    READ_FIELD(model, num_classes, f);
-    READ_FIELD(model, filter_inputs, f);
-    READ_FIELD(model, filter_entries, f);
-    READ_FIELD(model, filter_hashes, f);
-    READ_FIELD(model, bleach, f);
+    read_model_params(f, &model->p);
 
-    model_init(model, model->num_inputs_total, model->num_classes, model->filter_inputs, model->filter_entries, model->filter_hashes, model->bits_per_input, model->bleach, 0);
+    model_init_buffers(model);
 
-    READ_BUFFER(model, input_order, model->num_inputs_total, f);
+    print_model_params(&model->p);
 
-    read_matrix(f, model->hash_parameters, model->filter_hashes * model->filter_inputs);
-    read_tensor(f, model->filters, model->num_classes * model->num_filters * model->filter_entries);
+    READ_BUFFER(model, input_order, model->p.num_inputs_total, f);
+
+    read_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
+    read_tensor_u16(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
 
     fclose(f);
 }
 
-void read_dataset(const char* filename, u8_matrix_t dataset, size_t* num_samples, size_t* sample_size) {
+void read_pmodel(const char* filename, pmodel_t* model) {
+    FILE* f = fopen(filename, "r");
+
+    read_model_params(f, &model->p);
+
+    pmodel_init_buffers(model);
+
+    READ_BUFFER(model, input_order, model->p.num_inputs_total, f);
+
+    read_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
+    read_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
+
+    fclose(f);
+}
+
+void read_dataset(const char* filename, mat_u8 dataset, size_t* num_samples, size_t* sample_size) {
     FILE* f = fopen(filename, "r");
 
     READ_PTR(num_samples, f);
@@ -37,7 +64,7 @@ void read_dataset(const char* filename, u8_matrix_t dataset, size_t* num_samples
     fclose(f);
 }
 
-void read_dataset_partial(const char* filename, u8_matrix_t dataset, size_t num_samples_to_fetch, size_t* num_samples_total, size_t* sample_size) {
+void read_dataset_partial(const char* filename, mat_u8 dataset, size_t num_samples_to_fetch, size_t* num_samples_total, size_t* sample_size) {
     FILE* f = fopen(filename, "r");
 
     READ_PTR(num_samples_total, f);
@@ -50,50 +77,73 @@ void read_dataset_partial(const char* filename, u8_matrix_t dataset, size_t num_
     fclose(f);
 }
 
-void read_matrix(FILE* f, u16_matrix_t matrix, size_t size) {
-    READ_FIELD(&matrix, stride, f);
+#define DEFINE_READ_MATRIX(type) \
+    void read_matrix_##type(FILE* f, mat_##type matrix, size_t size) { \
+        READ_FIELD(&matrix, stride, f); \
+        READ_BUFFER(&matrix, data, size, f); \
+    }
 
-    READ_BUFFER(&matrix, data, size, f);
-}
+DEFINE_READ_MATRIX(u8)
+DEFINE_READ_MATRIX(u16)
 
-void read_matrix_u8(FILE* f, u8_matrix_t matrix, size_t size) {
-    READ_FIELD(&matrix, stride, f);
+#define DEFINE_READ_TENSOR(type) \
+    void read_tensor_##type(FILE* f, tensor_##type tensor, size_t size) { \
+        READ_FIELD(&tensor, stride1, f); \
+        READ_FIELD(&tensor, stride2, f); \
+        READ_BUFFER(&tensor, data, size, f); \
+    }
 
-    READ_BUFFER(&matrix, data, size, f);
-}
-
-void read_tensor(FILE* f, u16_tensor3d_t tensor, size_t size) {
-    READ_FIELD(&tensor, stride1, f);
-    READ_FIELD(&tensor, stride2, f);
-
-    READ_BUFFER(&tensor, data, size, f);
-}
+DEFINE_READ_TENSOR(u8)
+DEFINE_READ_TENSOR(u16)
 
 #define SAVE_VAR(var, fp) FWRITE_CHECK(&var, sizeof(var), 1, fp)
 #define SAVE_FIELD(structure, name, fp) FWRITE_CHECK(&(structure)->name, sizeof((structure)->name), 1, fp)
 #define SAVE_BUFFER(structure, name, num, fp) FWRITE_CHECK((structure)->name, sizeof(*(structure)->name), num, fp)
 
+void write_model_params(FILE* f, model_params_t* params) {
+    SAVE_FIELD(params, num_classes, f);
+    SAVE_FIELD(params, num_filters, f);
+
+    SAVE_FIELD(params, pad_zeros, f);
+    SAVE_FIELD(params, num_inputs_total, f);
+    SAVE_FIELD(params, bits_per_input, f);
+
+    SAVE_FIELD(params, block_size, f);
+
+    SAVE_FIELD(params, filter_hashes, f);
+    SAVE_FIELD(params, filter_inputs, f);
+    SAVE_FIELD(params, filter_entries, f);
+
+    SAVE_FIELD(params, bleach, f);
+}
+
 void write_model(const char* filename, model_t* model) {
     FILE* f = fopen(filename, "w");
 
-    SAVE_FIELD(model, pad_zeros, f);
-    SAVE_FIELD(model, num_inputs_total, f);
-    SAVE_FIELD(model, bits_per_input, f);
-    SAVE_FIELD(model, num_classes, f);
-    SAVE_FIELD(model, filter_inputs, f);
-    SAVE_FIELD(model, filter_entries, f);
-    SAVE_FIELD(model, filter_hashes, f);
-    SAVE_FIELD(model, bleach, f);
+    write_model_params(f, &model->p);
 
-    SAVE_BUFFER(model, input_order, model->num_inputs_total, f);
+    SAVE_BUFFER(model, input_order, model->p.num_inputs_total, f);
 
-    write_matrix(f, model->hash_parameters, model->filter_hashes * model->filter_inputs);
-    write_tensor(f, model->filters, model->num_classes * model->num_filters * model->filter_entries);
+    write_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
+    write_tensor_u16(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
 
     fclose(f);
 }
 
-void write_dataset(const char* filename, u8_matrix_t dataset, size_t num_samples, size_t sample_size) {
+void write_pmodel(const char* filename, pmodel_t* model) {
+    FILE* f = fopen(filename, "w");
+
+    write_model_params(f, &model->p);
+
+    SAVE_BUFFER(model, input_order, model->p.num_inputs_total, f);
+
+    write_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
+    write_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
+
+    fclose(f);
+}
+
+void write_dataset(const char* filename, mat_u8 dataset, size_t num_samples, size_t sample_size) {
     FILE* f = fopen(filename, "w");
 
     SAVE_VAR(num_samples, f);
@@ -104,21 +154,19 @@ void write_dataset(const char* filename, u8_matrix_t dataset, size_t num_samples
     fclose(f);
 }
 
-void write_matrix(FILE* f, u16_matrix_t matrix, size_t size) {
-    SAVE_FIELD(&matrix, stride, f);
+#define DEFINE_WRITE_MATRIX(type) \
+    void write_matrix_##type(FILE* f, mat_##type matrix, size_t size) { \
+        SAVE_FIELD(&matrix, stride, f); \
+        SAVE_BUFFER(&matrix, data, size, f); \
+    }
+DEFINE_WRITE_MATRIX(u8)
+DEFINE_WRITE_MATRIX(u16)
 
-    SAVE_BUFFER(&matrix, data, size, f);
-}
-
-void write_matrix_u8(FILE* f, u8_matrix_t matrix, size_t size) {
-    SAVE_FIELD(&matrix, stride, f);
-
-    SAVE_BUFFER(&matrix, data, size, f);
-}
-
-void write_tensor(FILE* f, u16_tensor3d_t tensor, size_t size) {
-    SAVE_FIELD(&tensor, stride1, f);
-    SAVE_FIELD(&tensor, stride2, f);
-
-    SAVE_BUFFER(&tensor, data, size, f);
-}
+#define DEFINE_WRITE_TENSOR(type) \
+    void write_tensor_##type(FILE* f, tensor_##type tensor, size_t size) { \
+        SAVE_FIELD(&tensor, stride1, f); \
+        SAVE_FIELD(&tensor, stride2, f); \
+        SAVE_BUFFER(&tensor, data, size, f); \
+    }
+DEFINE_WRITE_TENSOR(u8)
+DEFINE_WRITE_TENSOR(u16)

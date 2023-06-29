@@ -2,9 +2,9 @@
 
 /************* UNIFORM ***********/
 // return a random number between 0 and max inclusive.
-uint32_t unif_rand(uint32_t max) {
-    uint32_t divisor = RAND_MAX / (max + 1);
-    uint32_t retval;
+u32 unif_rand(u32 max) {
+    u32 divisor = RAND_MAX / (max + 1);
+    u32 retval;
 
     do { 
         retval = rand() / divisor;
@@ -13,17 +13,17 @@ uint32_t unif_rand(uint32_t max) {
     return retval;
 }
 
-uint32_t unif_rand_range(uint32_t min, uint32_t max) {
+u32 unif_rand_range(u32 min, u32 max) {
     return unif_rand(max - min) + min;
 }
 
-void swap(uint16_t* a, uint16_t* b) {
-    uint16_t tmp = *a;
+void swap(u16* a, u16* b) {
+    u16 tmp = *a;
     *a = *b;
     *b = tmp;
 }
 
-void shuffle_array(uint16_t* array, size_t length) {
+void shuffle_array(u16* array, size_t length) {
     for(size_t i = length - 1; i >= 1; --i) {
         size_t j = unif_rand(i);
         swap(array + i, array + j);

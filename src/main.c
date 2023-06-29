@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "types.h"
+
 #include "model.h"
 #include "tensor.h"
 #include "data_loader.h"
@@ -15,43 +17,46 @@ void train() {
     printf("*TRAINING*\n");
     model_t model;
 
-    size_t input_size = 784; 
-    size_t bits_per_input = 2; // 8
-    size_t num_inputs = input_size * bits_per_input;
+    model_init_params_t params = {
+        .num_classes = 10,
 
-    size_t num_classes = 10;
+        .num_inputs = MNIST_IM_SIZE * 2,
+        .bits_per_input = 2,
 
-    size_t filter_inputs = 28; // 49 or 56
-    size_t filter_entries = 1024; // 8192
-    size_t filter_hashes = 2; // 4
+        .block_size = 0,
 
-    model_init(&model, num_inputs, num_classes, filter_inputs, filter_entries, filter_hashes, bits_per_input, 1, 0);
+        .filter_hashes = 2,
+        .filter_inputs = 28,
+        .filter_entries = 1024,
+    };
+
+    model_init(&model, &params);
 
     printf("Loading test dataset\n");
     size_t num_test = MNIST_NUM_TEST;
-    u8_matrix_t test_patterns;
+    mat_u8 test_patterns;
     matrix_u8_init(&test_patterns, num_test, MNIST_IM_SIZE);
     unsigned char* test_labels = calloc(num_test, sizeof(*test_labels));
     load_mnist_test(test_patterns, test_labels, num_test);
 
     printf("Loading train dataset\n");
     size_t num_train = MNIST_NUM_TRAIN;
-    u8_matrix_t infimnist_patterns;
+    mat_u8 infimnist_patterns;
     matrix_u8_init(&infimnist_patterns, num_train, MNIST_IM_SIZE);
     unsigned char* infimnist_labels = calloc(num_train, sizeof(*infimnist_labels));
     load_infimnist(infimnist_patterns, infimnist_labels, num_train);
 
     printf("Binarizing test dataset\n");
-    u8_matrix_t binarized_test;
-    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * bits_per_input);
-    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, bits_per_input);
+    mat_u8 binarized_test;
+    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * params.bits_per_input);
+    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, params.bits_per_input);
 
     // print_binarized_image(&binarized_test, test_labels, 0, 2);
 
     printf("Binarizing train dataset\n");
-    u8_matrix_t binarized_infimnist;
-    matrix_u8_init(&binarized_infimnist, num_train, MNIST_IM_SIZE * bits_per_input);
-    binarize_matrix(binarized_infimnist, infimnist_patterns, MNIST_IM_SIZE, num_train, bits_per_input); 
+    mat_u8 binarized_infimnist;
+    matrix_u8_init(&binarized_infimnist, num_train, MNIST_IM_SIZE * params.bits_per_input);
+    binarize_matrix(binarized_infimnist, infimnist_patterns, MNIST_IM_SIZE, num_train, params.bits_per_input); 
 
     // print_binarized_image(&binarized_test, test_labels, 0, 2);
     print_binarized_image_raw(binarized_infimnist, infimnist_labels, 0, 2);
@@ -64,11 +69,11 @@ void train() {
             printf("    %zu\n", sample_it);
     }
 
-    uint64_t max_entry = 0;
-    for(size_t discr_it = 0; discr_it < model.num_classes; ++discr_it) {
-        for(size_t filter_it = 0; filter_it < model.num_filters; ++filter_it) {
-            for(size_t entry_it = 0; entry_it < model.filter_entries; ++entry_it) {
-                uint64_t el = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
+    u64 max_entry = 0;
+    for(size_t discr_it = 0; discr_it < model.p.num_classes; ++discr_it) {
+        for(size_t filter_it = 0; filter_it < model.p.num_filters; ++filter_it) {
+            for(size_t entry_it = 0; entry_it < model.p.filter_entries; ++entry_it) {
+                u64 el = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
                 if(el > max_entry)
                     max_entry = el;
             }
@@ -82,7 +87,7 @@ void train() {
     double best_accuracy = 0;
     for(size_t bleach = 1; bleach < 20; ++bleach) {
 
-        model.bleach = bleach;
+        model.p.bleach = bleach;
 
         size_t correct = 0;
         for(size_t sample_it = 0; sample_it < num_test; ++sample_it) {
@@ -99,7 +104,7 @@ void train() {
         }
     }
 
-    model.bleach = best_bleach;
+    model.p.bleach = best_bleach;
     printf("Best bleach: %zu (%lf)\n", best_bleach, best_accuracy);
 
     write_model("model.dat", &model);
@@ -113,42 +118,49 @@ void load_and_test() {
 
     read_model("model.dat", &model);
 
-    printf("Loading test dataset\n");
     size_t num_test = MNIST_NUM_TEST;
-    u8_matrix_t test_patterns;
+    printf("Loading test dataset (%zu)\n", num_test);
+    mat_u8 test_patterns;
     matrix_u8_init(&test_patterns, num_test, MNIST_IM_SIZE);
     unsigned char* test_labels = calloc(num_test, sizeof(*test_labels));
     load_mnist_test(test_patterns, test_labels, num_test);
 
-    printf("Loading train dataset\n");
-    size_t num_train = MNIST_NUM_TRAIN;
-    u8_matrix_t train_patterns;
-    matrix_u8_init(&train_patterns, num_train, MNIST_IM_SIZE);
-    unsigned char* train_labels = calloc(num_train, sizeof(*train_labels));
-    load_mnist_train(train_patterns, train_labels, num_train);
+    size_t num_total = MNIST_NUM_TRAIN;
 
-    printf("Binarizing test dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_test;
-    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, model.bits_per_input);
+    printf("Loading total train dataset (%zu)\n", num_total);
+    mat_u8 tmp_train_patterns;
+    matrix_u8_init(&tmp_train_patterns, num_total, MNIST_IM_SIZE);
+    unsigned char* tmp_train_labels = calloc(num_total, sizeof(*tmp_train_labels));
+    load_infimnist(tmp_train_patterns, tmp_train_labels, num_total);
 
-    printf("Binarizing train dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_train;
-    matrix_u8_init(&binarized_train, num_train, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_train, train_patterns, MNIST_IM_SIZE, num_train, model.bits_per_input);
+    printf("Binarizing test dataset\n"); 
+    printf("\t1. Calculate mean/var of train dset\n");
+    double mean[MNIST_IM_SIZE];
+    double variance[MNIST_IM_SIZE];
 
-    print_binarized_image_raw(binarized_train, train_labels, 0, 2);
+    mat_u8_mean(mean, tmp_train_patterns, MNIST_IM_SIZE, num_total);
+    mat_u8_variance(variance, tmp_train_patterns, MNIST_IM_SIZE, num_total, mean);
 
-    printf("Testing with bleach %zu\n", model.bleach);
+    printf("\t2. Binarizing\n");
+    mat_u8 binarized_test;
+    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix_meanvar(
+        binarized_test, 
+        test_patterns, 
+        mean, variance,
+        num_test, model.p.bits_per_input);
+
+
+    printf("Testing with bleach %u\n", model.p.bleach);
 
     size_t correct = 0;
-    for(size_t sample_it = 0; sample_it < num_train; ++sample_it) {
-        size_t class = model_predict2(&model, MATRIX_AXIS1(binarized_train, sample_it));
-        correct += (class == train_labels[sample_it]);
+    for(size_t sample_it = 0; sample_it < num_test; ++sample_it) {
+        size_t class = model_predict2(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        correct += (class == test_labels[sample_it]);
     }
 
-    double accuracy = ((double) correct) / ((double) num_train);
-    printf("Accuracy %zu/%zu (%f%%)\n", correct, num_train, 100 * accuracy);
+    double accuracy = ((double) correct) / ((double) num_test);
+    printf("Accuracy %zu/%zu (%.2f%%)\n", correct, num_test, 100 * accuracy);
 
 }
 
@@ -162,31 +174,31 @@ void compare() {
 
     printf("Loading test dataset\n");
     size_t num_test = MNIST_NUM_TEST;
-    u8_matrix_t test_patterns;
+    mat_u8 test_patterns;
     matrix_u8_init(&test_patterns, num_test, MNIST_IM_SIZE);
     unsigned char* test_labels = calloc(num_test, sizeof(*test_labels));
     load_mnist_test(test_patterns, test_labels, num_test);
 
     printf("Loading train dataset\n");
     size_t num_train = MNIST_NUM_TRAIN;
-    u8_matrix_t train_patterns;
+    mat_u8 train_patterns;
     matrix_u8_init(&train_patterns, num_train, MNIST_IM_SIZE);
     unsigned char* train_labels = calloc(num_train, sizeof(*train_labels));
     load_mnist_train(train_patterns, train_labels, num_train);
 
-    printf("Binarizing test dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_test;
-    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, model.bits_per_input);
+    printf("Binarizing test dataset with %u bits per input\n", model.p.bits_per_input);
+    mat_u8 binarized_test;
+    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, model.p.bits_per_input);
 
-    printf("Binarizing train dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_train;
-    matrix_u8_init(&binarized_train, num_train, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_train, train_patterns, MNIST_IM_SIZE, num_train, model.bits_per_input);
+    printf("Binarizing train dataset with %u bits per input\n", model.p.bits_per_input);
+    mat_u8 binarized_train;
+    matrix_u8_init(&binarized_train, num_train, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix(binarized_train, train_patterns, MNIST_IM_SIZE, num_train, model.p.bits_per_input);
 
     print_binarized_image_raw(binarized_train, train_labels, 0, 2);
 
-    printf("Testing with bleach %zu\n", model.bleach);
+    printf("Testing with bleach %u\n", model.p.bleach);
 
     size_t agree = 0;
     for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
@@ -207,31 +219,31 @@ void test_batching() {
 
     printf("Loading test dataset\n");
     size_t num_test = MNIST_NUM_TEST;
-    u8_matrix_t test_patterns;
+    mat_u8 test_patterns;
     matrix_u8_init(&test_patterns, num_test, MNIST_IM_SIZE);
     unsigned char* test_labels = calloc(num_test, sizeof(*test_labels));
     load_mnist_test(test_patterns, test_labels, num_test);
 
     printf("Loading train dataset\n");
     size_t num_train = MNIST_NUM_TRAIN;
-    u8_matrix_t train_patterns;
+    mat_u8 train_patterns;
     matrix_u8_init(&train_patterns, num_train, MNIST_IM_SIZE);
     unsigned char* train_labels = calloc(num_train, sizeof(*train_labels));
     load_mnist_train(train_patterns, train_labels, num_train);
 
-    printf("Binarizing test dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_test;
-    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, model.bits_per_input);
+    printf("Binarizing test dataset with %u bits per input\n", model.p.bits_per_input);
+    mat_u8 binarized_test;
+    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, model.p.bits_per_input);
 
-    printf("Binarizing train dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_train;
-    matrix_u8_init(&binarized_train, num_train, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_train, train_patterns, MNIST_IM_SIZE, num_train, model.bits_per_input);
+    printf("Binarizing train dataset with %u bits per input\n", model.p.bits_per_input);
+    mat_u8 binarized_train;
+    matrix_u8_init(&binarized_train, num_train, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix(binarized_train, train_patterns, MNIST_IM_SIZE, num_train, model.p.bits_per_input);
 
     print_binarized_image_raw(binarized_train, train_labels, 0, 2);
 
-    printf("Testing with bleach %zu\n", model.bleach);
+    printf("Testing with bleach %u\n", model.p.bleach);
 
     size_t batch_size = 30;
     size_t agree = 0;
@@ -259,33 +271,33 @@ void test_reordering_dataset() {
 
     printf("Loading test dataset\n");
     size_t num_test = MNIST_NUM_TEST;
-    u8_matrix_t test_patterns;
+    mat_u8 test_patterns;
     matrix_u8_init(&test_patterns, num_test, MNIST_IM_SIZE);
     unsigned char* test_labels = calloc(num_test, sizeof(*test_labels));
     load_mnist_test(test_patterns, test_labels, num_test);
 
-    printf("Binarizing test dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_test;
-    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, model.bits_per_input);
+    printf("Binarizing test dataset with %u bits per input\n", model.p.bits_per_input);
+    mat_u8 binarized_test;
+    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix(binarized_test, test_patterns, MNIST_IM_SIZE, num_test, model.p.bits_per_input);
 
     print_binarized_image_raw(binarized_test, test_labels, 0, 2);
 
     printf("Reordering dataset\n");
-    u8_matrix_t reordered_binarized_test;
-    matrix_u8_init(&reordered_binarized_test, num_test, MNIST_IM_SIZE * model.bits_per_input);
-    reorder_dataset(reordered_binarized_test, binarized_test, model.input_order, num_test, model.num_inputs_total);
+    mat_u8 reordered_binarized_test;
+    matrix_u8_init(&reordered_binarized_test, num_test, MNIST_IM_SIZE * model.p.bits_per_input);
+    reorder_dataset(reordered_binarized_test, binarized_test, model.input_order, num_test, model.p.num_inputs_total);
 
-    printf("Testing with bleach %zu\n", model.bleach);
+    printf("Testing with bleach %u\n", model.p.bleach);
 
     size_t agree = 0;
 
-    unsigned char* reordered_sample = (unsigned char *) calloc(MNIST_IM_SIZE * model.bits_per_input, sizeof(*binarized_test.data));
+    unsigned char* reordered_sample = (unsigned char *) calloc(MNIST_IM_SIZE * model.p.bits_per_input, sizeof(*binarized_test.data));
 
     for(size_t sample_it = 0; sample_it < MNIST_NUM_TEST; ++sample_it) {
-        reorder_array(reordered_sample, MATRIX_AXIS1(binarized_test, sample_it), model.input_order, model.num_inputs_total);
+        reorder_array(reordered_sample, MATRIX_AXIS1(binarized_test, sample_it), model.input_order, model.p.num_inputs_total);
         
-        if(memcmp(reordered_sample, MATRIX_AXIS1(reordered_binarized_test, sample_it), MNIST_IM_SIZE * model.bits_per_input * sizeof(*reordered_binarized_test.data)) == 0) {
+        if(memcmp(reordered_sample, MATRIX_AXIS1(reordered_binarized_test, sample_it), MNIST_IM_SIZE * model.p.bits_per_input * sizeof(*reordered_binarized_test.data)) == 0) {
             agree += 1;
         }
     }
@@ -304,8 +316,8 @@ void print_model_data() {
         printf("Discriminator %zu.\n\n", discr_it);
         for(size_t filter_it = 0; filter_it < 1; ++filter_it) {
             printf("Filter %zu.\n", filter_it);
-            for(size_t entry_it = 0; entry_it < model.filter_entries; ++entry_it) {
-                uint32_t el = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
+            for(size_t entry_it = 0; entry_it < model.p.filter_entries; ++entry_it) {
+                u32 el = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
                 printf("%u ", el);
             }
             printf("\n");
@@ -323,31 +335,31 @@ void binarize_and_save() {
 
     printf("Loading infimnist\n"); 
     size_t num_samples = MNIST_NUM_TRAIN;
-    u8_matrix_t infimnist_patterns;
+    mat_u8 infimnist_patterns;
     matrix_u8_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
     unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
     load_infimnist(infimnist_patterns, infimnist_labels, num_samples);
 
-    printf("Binarizing infimnist dataset with %zu bits per input\n", model.bits_per_input);
-    u8_matrix_t binarized_infimnist;
-    matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
-    binarize_matrix(binarized_infimnist, infimnist_patterns, MNIST_IM_SIZE, num_samples, model.bits_per_input);
+    printf("Binarizing infimnist dataset with %u bits per input\n", model.p.bits_per_input);
+    mat_u8 binarized_infimnist;
+    matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix(binarized_infimnist, infimnist_patterns, MNIST_IM_SIZE, num_samples, model.p.bits_per_input);
 
     printf("Saving binarized infimnist\n");
-    write_dataset("binarized_infimnist.dat", binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+    write_dataset("binarized_infimnist.dat", binarized_infimnist, num_samples, MNIST_IM_SIZE * model.p.bits_per_input);
 
     printf("Loading binarized infimnist into another buffer\n");
-    u8_matrix_t binarized_infimnist2;
-    matrix_u8_init(&binarized_infimnist2, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+    mat_u8 binarized_infimnist2;
+    matrix_u8_init(&binarized_infimnist2, num_samples, MNIST_IM_SIZE * model.p.bits_per_input);
     size_t num_samples_, sample_size_;
     read_dataset("binarized_infimnist.dat", binarized_infimnist2, &num_samples_, &sample_size_);
     assert(num_samples_ == num_samples);
-    assert(sample_size_ == MNIST_IM_SIZE * model.bits_per_input);
+    assert(sample_size_ == MNIST_IM_SIZE * model.p.bits_per_input);
 
     printf("Veryifying that the two buffers are the same\n");
     size_t agree = 0;
     for(size_t sample_it = 0; sample_it < num_samples; ++sample_it) {
-        if(memcmp(MATRIX_AXIS1(binarized_infimnist, sample_it), MATRIX_AXIS1(binarized_infimnist2, sample_it), MNIST_IM_SIZE * model.bits_per_input * sizeof(*binarized_infimnist.data)) == 0) {
+        if(memcmp(MATRIX_AXIS1(binarized_infimnist, sample_it), MATRIX_AXIS1(binarized_infimnist2, sample_it), MNIST_IM_SIZE * model.p.bits_per_input * sizeof(*binarized_infimnist.data)) == 0) {
             agree += 1;
         }
     }
@@ -363,13 +375,13 @@ void load_and_print_binarized() {
          
     printf("Loading infimnist\n"); 
     size_t num_samples = MNIST_NUM_TRAIN;
-    u8_matrix_t infimnist_patterns;
+    mat_u8 infimnist_patterns;
     matrix_u8_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
     unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
     load_infimnist(infimnist_patterns, infimnist_labels, num_samples);
 
     printf("Binarizing infimnist dataset with %zu bits per input\n", bits_per_input);
-    u8_matrix_t binarized_infimnist;
+    mat_u8 binarized_infimnist;
     matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * bits_per_input);
     binarize_matrix(binarized_infimnist, infimnist_patterns, MNIST_IM_SIZE, num_samples, bits_per_input);
 
@@ -389,8 +401,8 @@ void infer_from_binarized_dset() {
     // Loading binarized dataset
     printf("Loading dataset\n");
     const unsigned int num_samples = 100000;
-    u8_matrix_t binarized_infimnist;
-    matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.bits_per_input);
+    mat_u8 binarized_infimnist;
+    matrix_u8_init(&binarized_infimnist, num_samples, MNIST_IM_SIZE * model.p.bits_per_input);
     size_t num_samples_total, sample_size;
     read_dataset_partial("./data/binarized8m.dat", binarized_infimnist, num_samples, &num_samples_total, &sample_size);
 
@@ -417,7 +429,7 @@ void load_mnist() {
     printf("*LOADING MNIST*\n");
 
     size_t num_samples = MNIST_NUM_TRAIN;
-    u8_matrix_t infimnist_patterns;
+    mat_u8 infimnist_patterns;
     matrix_u8_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
     unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
     load_infimnist(infimnist_patterns, infimnist_labels, num_samples);
@@ -434,12 +446,12 @@ void test_sparsity() {
 
     model_bleach(&model);
 
-    size_t total_entries = model.num_classes * model.num_filters * model.filter_entries;
+    size_t total_entries = model.p.num_classes * model.p.num_filters * model.p.filter_entries;
     size_t num_nonzero = 0;
-    for(size_t discr_it = 0; discr_it < model.num_classes; ++discr_it) {
-        for(size_t filter_it = 0; filter_it < model.num_filters; ++filter_it) {
-            for(size_t entry_it = 0; entry_it < model.filter_entries; ++entry_it) {
-                uint16_t entry = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
+    for(size_t discr_it = 0; discr_it < model.p.num_classes; ++discr_it) {
+        for(size_t filter_it = 0; filter_it < model.p.num_filters; ++filter_it) {
+            for(size_t entry_it = 0; entry_it < model.p.filter_entries; ++entry_it) {
+                u16 entry = *TENSOR3D(model.filters, discr_it, filter_it, entry_it);
                 if(entry != 0)
                     num_nonzero += 1;
             }
@@ -447,6 +459,74 @@ void test_sparsity() {
     }
 
     printf("Sparsity: %lf%%\n", 100 * ((double) num_nonzero) / total_entries);
+}
+
+void test_packed() {
+    printf("*TEST PACKED*\n");
+
+    // Load model
+    printf("Loading model\n");
+         
+    model_t model;
+    read_model("model.dat", &model);
+
+    model_bleach(&model);
+    pmodel_t pmodel;
+    model_pack(&model, &pmodel);
+
+    size_t num_test = MNIST_NUM_TEST;
+    printf("Loading test dataset (%zu)\n", num_test);
+    mat_u8 test_patterns;
+    matrix_u8_init(&test_patterns, num_test, MNIST_IM_SIZE);
+    unsigned char* test_labels = calloc(num_test, sizeof(*test_labels));
+    load_mnist_test(test_patterns, test_labels, num_test);
+
+    size_t num_total = MNIST_NUM_TRAIN;
+
+    printf("Loading total train dataset (%zu)\n", num_total);
+    mat_u8 tmp_train_patterns;
+    matrix_u8_init(&tmp_train_patterns, num_total, MNIST_IM_SIZE);
+    unsigned char* tmp_train_labels = calloc(num_total, sizeof(*tmp_train_labels));
+    load_infimnist(tmp_train_patterns, tmp_train_labels, num_total);
+
+    printf("Binarizing test dataset\n"); 
+    printf("\t1. Calculate mean/var of train dset\n");
+    double mean[MNIST_IM_SIZE];
+    double variance[MNIST_IM_SIZE];
+
+    mat_u8_mean(mean, tmp_train_patterns, MNIST_IM_SIZE, num_total);
+    mat_u8_variance(variance, tmp_train_patterns, MNIST_IM_SIZE, num_total, mean);
+
+    printf("\t2. Binarizing\n");
+    mat_u8 binarized_test;
+    matrix_u8_init(&binarized_test, num_test, MNIST_IM_SIZE * model.p.bits_per_input);
+    binarize_matrix_meanvar(
+        binarized_test, 
+        test_patterns, 
+        mean, variance,
+        num_test, model.p.bits_per_input);
+
+    printf("Testing\n");
+    size_t correct = 0;
+    size_t pcorrect = 0;
+    size_t matching = 0;
+    for(size_t sample_it = 0; sample_it < num_test; ++sample_it) {
+        u64 class = model_predict2(&model, MATRIX_AXIS1(binarized_test, sample_it));
+        u64 pclass = pmodel_predict(&pmodel, MATRIX_AXIS1(binarized_test, sample_it));
+        // printf("\n");
+        correct += (class == test_labels[sample_it]);
+        pcorrect += (pclass == test_labels[sample_it]);
+        matching += (class == pclass);
+    }
+
+    double accuracy = ((double) correct) / ((double) num_test);
+    double paccuracy = ((double) pcorrect) / ((double) num_test);
+    double matching_accuracy = ((double) matching) / ((double) num_test);
+
+    printf("Accuracies:\n");
+    printf("\tbase %zu/%zu (%.2lf%%)\n", correct, num_test, 100 * accuracy);
+    printf("\tpacked %zu/%zu(%.2lf%%)\n", pcorrect, num_test, 100 * paccuracy);
+    printf("Matching:\n\t%zu/%zu (%.2lf%%)\n", matching, num_test, 100 * matching_accuracy);
 }
 
 int main(int argc, char *argv[]) {  
@@ -463,7 +543,8 @@ int main(int argc, char *argv[]) {
         7 is for loading and printing binarized infimnist\n\t \
         8 is for infering from binarized infimnist\n\t \
         9 is for loading mnist\n\t \
-        a is for testing sparsity\n";
+        a is for testing sparsity\n\t \
+        b is for testing packed\n";
 
 
     /* Error Checking */
@@ -494,6 +575,8 @@ int main(int argc, char *argv[]) {
         load_mnist();
     else if(argv[1][0] == 'a')
         test_sparsity();
+    else if(argv[1][0] == 'b')
+        test_packed();
     else {
         printf(error_message, argv[0]);
         exit(1);

@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "model.h"
+#include "types.h"
 
 /**
  * @brief 
@@ -16,9 +17,9 @@
  * @param input_batch of shape (batch_size, #elements_per_sample)
  * @param batch_size 
  */
-void batch_hashing(u16_tensor3d_t resulting_hashes, model_t* model, u8_matrix_t input_batch, size_t batch_size);
+void batch_hashing(tensor_u16 resulting_hashes, model_t* model, mat_u8 input_batch, size_t batch_size);
 
-void batch_prediction(size_t* results, model_t* model, u8_matrix_t input_batch, size_t batch_size);
+void batch_prediction(size_t* results, model_t* model, mat_u8 input_batch, size_t batch_size);
 
 
 #endif 

@@ -1,9 +1,11 @@
 #include "data_loader.h"
 #include "data_manager.h"
+#include "types.h"
 
-void binarize_and_write(size_t num_samples, size_t bits_per_input, u8_matrix_t dataset, char* output_path) {
+
+void binarize_and_write(size_t num_samples, size_t bits_per_input, mat_u8 dataset, char* output_path) {
     printf("Binarizing infimnist dataset with %zu bits per input\n", bits_per_input);
-    u8_matrix_t binarized_dset;
+    mat_u8 binarized_dset;
     matrix_u8_init(&binarized_dset, num_samples, MNIST_IM_SIZE * bits_per_input);
     binarize_matrix(binarized_dset, dataset, MNIST_IM_SIZE, num_samples, bits_per_input);
 
@@ -33,7 +35,7 @@ int main(int argc, char *argv[]) {
         }
 
         printf("Loading mnist_test\n");
-        u8_matrix_t mnist_patterns;
+        mat_u8 mnist_patterns;
         matrix_u8_init(&mnist_patterns, num_samples, MNIST_IM_SIZE);
         unsigned char* mnist_labels = calloc(num_samples, sizeof(*mnist_labels));
         load_mnist_test(mnist_patterns, mnist_labels, num_samples);
@@ -46,7 +48,7 @@ int main(int argc, char *argv[]) {
         }
 
         printf("Loading infimnist\n"); 
-        u8_matrix_t infimnist_patterns;
+        mat_u8 infimnist_patterns;
         matrix_u8_init(&infimnist_patterns, num_samples, MNIST_IM_SIZE);
         unsigned char* infimnist_labels = calloc(num_samples, sizeof(*infimnist_labels));
         load_infimnist(infimnist_patterns, infimnist_labels, num_samples);

@@ -1,19 +1,19 @@
 #include "data_loader.h"
 
-u8_matrix_t train_images; // Of shape (#Samples, 784) -> flattened
-u8_matrix_t test_images; // Of shape (#Samples, 784) -> flattened
-uint8_t* train_labels; // Of shape (#Samples,) 
-uint8_t* test_labels; // Of shape (#Samples,)
+mat_u8 train_images; // Of shape (#Samples, 784) -> flattened
+mat_u8 test_images; // Of shape (#Samples, 784) -> flattened
+u8* train_labels; // Of shape (#Samples,) 
+u8* test_labels; // Of shape (#Samples,)
 
-u8_matrix_t binarized_train; // Of shape (#Samples, 784 * bits_per_pixel)
-u8_matrix_t binarized_test; // Of shape (#Samples, 784 * bits_per_pixel)
+mat_u8 binarized_train; // Of shape (#Samples, 784 * bits_per_pixel)
+mat_u8 binarized_test; // Of shape (#Samples, 784 * bits_per_pixel)
 
-u8_matrix_t reordered_binarized_train; // Of shape (#Samples, 784 * bits_per_pixel)
-u8_matrix_t reordered_binarized_test; // Of shape (#Samples, 784 * bits_per_pixel)
+mat_u8 reordered_binarized_train; // Of shape (#Samples, 784 * bits_per_pixel)
+mat_u8 reordered_binarized_test; // Of shape (#Samples, 784 * bits_per_pixel)
 
-void reverse_bytes(uint32_t* element) {
-    uint8_t tmp;
-    uint8_t* ptr = (uint8_t*) element;
+void reverse_bytes(u32* element) {
+    u8 tmp;
+    u8* ptr = (u8*) element;
 
     tmp = ptr[0];
     ptr[0] = ptr[3];
@@ -24,12 +24,12 @@ void reverse_bytes(uint32_t* element) {
     ptr[2] = tmp;
 }
 
-void read_mnist_file(char* file_path, size_t num_samples, size_t stride, size_t len_info, uint8_t* data, uint32_t* info, size_t offset) {
+void read_mnist_file(char* file_path, size_t num_samples, size_t stride, size_t len_info, u8* data, u32* info, size_t offset) {
     FILE* fd = fopen(file_path, "r");
 
     if(fd == NULL) printf("Not able to read the file at path %s\n", file_path);
     
-    size_t fread_res = fread(info, sizeof(uint32_t), len_info, fd);
+    size_t fread_res = fread(info, sizeof(u32), len_info, fd);
     assert(fread_res > 0);
     assert(num_samples <= info[1]);
     for(size_t it = 0; it < len_info; ++it) reverse_bytes(info + it);
@@ -42,8 +42,8 @@ void read_mnist_file(char* file_path, size_t num_samples, size_t stride, size_t 
     fclose(fd);
 }
 
-void load_mnist_file(u8_matrix_t patterns, uint8_t* labels, char* image_path, char* label_path, size_t num_samples, size_t offset) {
-    uint32_t* info_buffer = calloc(MNIST_LEN_INFO_IMAGE, sizeof(*info_buffer));
+void load_mnist_file(mat_u8 patterns, u8* labels, char* image_path, char* label_path, size_t num_samples, size_t offset) {
+    u32* info_buffer = calloc(MNIST_LEN_INFO_IMAGE, sizeof(*info_buffer));
 
     read_mnist_file(image_path, num_samples, MNIST_IM_SIZE, MNIST_LEN_INFO_IMAGE, patterns.data, info_buffer, offset);
     assert(info_buffer[0] == 2051);
@@ -55,39 +55,39 @@ void load_mnist_file(u8_matrix_t patterns, uint8_t* labels, char* image_path, ch
     free(info_buffer);
 }
 
-void load_mnist_train(u8_matrix_t patterns, uint8_t* labels, size_t num_samples) {
+void load_mnist_train(mat_u8 patterns, u8* labels, size_t num_samples) {
     load_mnist_file(patterns, labels, MNIST_TRAIN_IMAGE, MNIST_TRAIN_LABEL, num_samples, 0);
 }
 
-void load_mnist_test(u8_matrix_t patterns, uint8_t* labels, size_t num_samples) {
+void load_mnist_test(mat_u8 patterns, u8* labels, size_t num_samples) {
     load_mnist_file(patterns, labels, MNIST_TEST_IMAGE, MNIST_TEST_LABEL, num_samples, 0);
 }
 
-void load_infimnist(u8_matrix_t patterns, uint8_t* labels, size_t num_samples) {
+void load_infimnist(mat_u8 patterns, u8* labels, size_t num_samples) {
     load_mnist_file(patterns, labels, INFIMNIST_PATTERNS, INFIMNIST_LABELS, num_samples, 0);
 }
 
-void load_infimnist_labels(uint8_t* labels, size_t num_samples) {
-    uint32_t info_buffer[MNIST_LEN_INFO_LABEL];
+void load_infimnist_labels(u8* labels, size_t num_samples) {
+    u32 info_buffer[MNIST_LEN_INFO_LABEL];
 
     read_mnist_file(INFIMNIST_LABELS, num_samples, 1, MNIST_LEN_INFO_LABEL, labels, info_buffer, 0);  
     assert(info_buffer[0] == 2049);    
 }
 
-void load_mnist_train_offset(u8_matrix_t patterns, uint8_t* labels, size_t num_samples, size_t offset) {
+void load_mnist_train_offset(mat_u8 patterns, u8* labels, size_t num_samples, size_t offset) {
     load_mnist_file(patterns, labels, MNIST_TRAIN_IMAGE, MNIST_TRAIN_LABEL, num_samples, offset);
 }
 
-void load_mnist_test_offset(u8_matrix_t patterns, uint8_t* labels, size_t num_samples, size_t offset) {
+void load_mnist_test_offset(mat_u8 patterns, u8* labels, size_t num_samples, size_t offset) {
     load_mnist_file(patterns, labels, MNIST_TEST_IMAGE, MNIST_TEST_LABEL, num_samples, offset);
 }
 
-void load_infimnist_offset(u8_matrix_t patterns, uint8_t* labels, size_t num_samples, size_t offset) {
+void load_infimnist_offset(mat_u8 patterns, u8* labels, size_t num_samples, size_t offset) {
     load_mnist_file(patterns, labels, INFIMNIST_PATTERNS, INFIMNIST_LABELS, num_samples, offset);
 }
 
-void load_infimnist_labels_offset(uint8_t* labels, size_t num_samples, size_t offset) {
-    uint32_t info_buffer[MNIST_LEN_INFO_LABEL];
+void load_infimnist_labels_offset(u8* labels, size_t num_samples, size_t offset) {
+    u32 info_buffer[MNIST_LEN_INFO_LABEL];
 
     read_mnist_file(INFIMNIST_LABELS, num_samples, 1, MNIST_LEN_INFO_LABEL, labels, info_buffer, offset);  
     assert(info_buffer[0] == 2049);    
@@ -104,7 +104,7 @@ void load_infimnist_labels_offset(uint8_t* labels, size_t num_samples, size_t of
   ((byte) & 0x02 ? '1' : '0'), \
   ((byte) & 0x01 ? '1' : '0') 
 
-void print_pixel(uint8_t value, int raw) {
+void print_pixel(u8 value, int raw) {
     if(raw == 1) printf(BYTE_TO_BINARY_PATTERN" ", BYTE_TO_BINARY(value));
     else if(raw == 2) printf("%d ", value);
     else {
@@ -114,12 +114,12 @@ void print_pixel(uint8_t value, int raw) {
     }
 }
 
-void print_binarized_value(uint8_t value) {
+void print_binarized_value(u8 value) {
     char map[2]= " @";
     printf("%c ", map[value - 1]);
 }
 
-void print_mnist_image_(u8_matrix_t images, uint8_t* labels, size_t index, int raw) {
+void print_mnist_image_(mat_u8 images, u8* labels, size_t index, int raw) {
     printf("Image %zu (Label %d)\n", index, labels[index]);
     for (size_t j = 0; j < MNIST_IM_SIZE; ++j) {
         print_pixel(*MATRIX(images, index, j), raw);
@@ -128,7 +128,7 @@ void print_mnist_image_(u8_matrix_t images, uint8_t* labels, size_t index, int r
     putchar('\n');
 }
 
-void print_binarized_image(u8_matrix_t m, uint8_t* labels, size_t index, size_t num_bits) {
+void print_binarized_image(mat_u8 m, u8* labels, size_t index, size_t num_bits) {
     printf("Image %zu (Label %d) (Binarized)\n", index, labels[index]);
     for (size_t j = 0; j < MNIST_IM_SIZE; ++j) {
         char value = *MATRIX(m, index, j * num_bits);
@@ -141,7 +141,7 @@ void print_binarized_image(u8_matrix_t m, uint8_t* labels, size_t index, size_t 
     putchar('\n'); 
 }
 
-void print_binarized_image_raw(u8_matrix_t m, uint8_t* labels, size_t index, size_t num_bits) {
+void print_binarized_image_raw(mat_u8 m, u8* labels, size_t index, size_t num_bits) {
     if(labels != NULL)
         printf("Binarized image %zu (Label %d) (Binarized)\n", index, labels[index]);
     else
@@ -153,15 +153,15 @@ void print_binarized_image_raw(u8_matrix_t m, uint8_t* labels, size_t index, siz
     }
 }
 
-void print_image(u8_matrix_t m, uint8_t* labels, size_t index) {
+void print_image(mat_u8 m, u8* labels, size_t index) {
     print_mnist_image_(m, labels, index, 0);
 }
 
-void print_image_raw(u8_matrix_t m, uint8_t* labels, size_t index) {
+void print_image_raw(mat_u8 m, u8* labels, size_t index) {
     print_mnist_image_(m, labels, index, 1);
 }
 
-uint8_t thermometer_encode(uint8_t val, double mean, double std, size_t num_bits, double* skews, uint8_t* encodings) {
+u8 thermometer_encode(u8 val, double mean, double std, size_t num_bits, double* skews, u8* encodings) {
     size_t skew_index = 0;
     for(; skew_index < num_bits && val >= skews[skew_index] * std + mean; ++skew_index);
 
@@ -170,7 +170,7 @@ uint8_t thermometer_encode(uint8_t val, double mean, double std, size_t num_bits
     return encodings[skew_index];
 }
 
-void binarize_sample2(u8_matrix_t result, u8_matrix_t dataset, size_t sample_it, size_t num_bits, double* mean, double* variance, double* skews, uint8_t* encodings) { 
+void binarize_sample2(mat_u8 result, mat_u8 dataset, size_t sample_it, size_t num_bits, double* mean, double* variance, double* skews, u8* encodings) { 
     for(size_t bit_it = 0; bit_it < num_bits; ++bit_it) {
         for(size_t offset_it = 0; offset_it < dataset.stride; ++offset_it) {
             char packed_encoding = thermometer_encode(*MATRIX(dataset, sample_it, offset_it), mean[offset_it], sqrt(variance[offset_it]), num_bits, skews, encodings);
@@ -179,7 +179,7 @@ void binarize_sample2(u8_matrix_t result, u8_matrix_t dataset, size_t sample_it,
     }
 }
 
-void binarize_sample(u8_matrix_t result, u8_matrix_t dataset, size_t sample_it, size_t num_bits, double* mean, double* variance, double* skews, uint8_t* encodings) {
+void binarize_sample(mat_u8 result, mat_u8 dataset, size_t sample_it, size_t num_bits, double* mean, double* variance, double* skews, u8* encodings) {
     for(size_t offset_it = 0; offset_it < dataset.stride; ++offset_it) {
         char packed_encoding = thermometer_encode(*MATRIX(dataset, sample_it, offset_it), mean[offset_it], sqrt(variance[offset_it]), num_bits, skews, encodings);
         // printf("packed "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(packed_encoding));
@@ -191,14 +191,14 @@ void binarize_sample(u8_matrix_t result, u8_matrix_t dataset, size_t sample_it, 
     }
 }
 
-void binarize_matrix_meanvar(u8_matrix_t result, u8_matrix_t dataset, double* mean, double* variance, size_t sample_size, size_t num_samples, size_t num_bits) {
+void binarize_matrix_meanvar(mat_u8 result, mat_u8 dataset, double* mean, double* variance, size_t num_samples, size_t num_bits) {
     double skews[num_bits];
     for(size_t it = 0; it < num_bits; ++it) {
         skews[it] = gauss_inv((((double) (it + 1))) / (((double) num_bits + 1)));
         // printf("skew: %lf\n", skews[it]);
     }
 
-    uint8_t encodings[9] = { 
+    u8 encodings[9] = { 
         0b00000000, 0b00000001, 0b00000011, 
         0b00000111, 0b00001111, 0b00011111,
         0b00111111, 0b01111111, 0b11111111
@@ -208,14 +208,14 @@ void binarize_matrix_meanvar(u8_matrix_t result, u8_matrix_t dataset, double* me
         binarize_sample2(result, dataset, sample_it, num_bits, mean, variance, skews, encodings);
 }
 
-void binarize_matrix(u8_matrix_t result, u8_matrix_t dataset, size_t sample_size, size_t num_samples, size_t num_bits) {
+void binarize_matrix(mat_u8 result, mat_u8 dataset, size_t sample_size, size_t num_samples, size_t num_bits) {
     double skews[num_bits];
     for(size_t it = 0; it < num_bits; ++it) {
         skews[it] = gauss_inv((((double) (it + 1))) / (((double) num_bits + 1)));
         // printf("skew: %lf\n", skews[it]);
     }
 
-    uint8_t encodings[9] = {
+    u8 encodings[9] = {
         0b00000000,
         0b00000001,
         0b00000011,
@@ -227,15 +227,15 @@ void binarize_matrix(u8_matrix_t result, u8_matrix_t dataset, size_t sample_size
         0b11111111
     };
     for(size_t it = 0; it < num_bits + 1; ++it) {
-        // encodings[it] = (((uint8_t) 0xff) << it) & (((uint8_t) 0xff) >> (8 - num_bits));
+        // encodings[it] = (((u8) 0xff) << it) & (((u8) 0xff) >> (8 - num_bits));
         // printf("encoding: "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(encodings[it]));
     }
 
     double mean[sample_size];
     double variance[sample_size];
 
-    matrix_u8_mean(mean, dataset, sample_size, num_samples);
-    matrix_u8_variance(variance, dataset, sample_size, num_samples, mean);
+    mat_u8_mean(mean, dataset, sample_size, num_samples);
+    mat_u8_variance(variance, dataset, sample_size, num_samples, mean);
 
     // printf("Mean:");
     // for(size_t it = 0; it < sample_size; ++it) {
@@ -255,13 +255,13 @@ void binarize_matrix(u8_matrix_t result, u8_matrix_t dataset, size_t sample_size
         binarize_sample2(result, dataset, sample_it, num_bits, mean, variance, skews, encodings);
 }
 
-void fill_input_random(uint8_t* input, size_t input_length) {
+void fill_input_random(u8* input, size_t input_length) {
     for(size_t it = 0; it < input_length; ++it) {
         input[it] = rand() % 2;
     }
 }
 
-void reorder_dataset(u8_matrix_t result, u8_matrix_t dataset, uint16_t* order, size_t num_samples, size_t num_elements) {
+void reorder_dataset(mat_u8 result, mat_u8 dataset, u16* order, size_t num_samples, size_t num_elements) {
     for(size_t it = 0; it < num_samples; ++it) {
         reorder_array(MATRIX_AXIS1(result, it), MATRIX_AXIS1(dataset, it), order, num_elements);
     }

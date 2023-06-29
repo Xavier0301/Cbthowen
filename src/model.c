@@ -2,76 +2,84 @@
 
 #include "time.h"
 
-uint8_t* reorder_buffer;
-u16_matrix_t hashes_buffer; // used in predict2
+u8* reorder_buffer;
+mat_u16 hashes_buffer; // used in predict2
 
-void reorder_array(uint8_t* result, uint8_t* input, uint16_t* order, size_t len) {
-    for(size_t it = 0; it < len; ++it)
+void reorder_array(u8* result, u8* input, u16* order, u32 len) {
+    for(u32 it = 0; it < len; ++it)
         result[it] = input[order[it]];
 }
 
-void randomize_input_order(uint16_t* input_order, size_t len, size_t block_size) {
-    for(size_t it = 0; it < len; ++it) {
+void randomize_input_order(u16* input_order, u32 len, u32 block_size) {
+    for(u32 it = 0; it < len; ++it) {
         input_order[it] = it;
     }
     
-    for(size_t it = 0; it < len; it += block_size) {
-        size_t dyn_len = (it + block_size > len) ? len - it : block_size;
+    for(u32 it = 0; it < len; it += block_size) {
+        u32 dyn_len = (it + block_size > len) ? len - it : block_size;
         shuffle_array(input_order + it, dyn_len);
     }
 }
 
-void generate_h3_values(u16_matrix_t values, size_t num_hashes, size_t num_inputs, size_t num_entries) {
-    for(size_t i = 0; i < num_hashes; ++i) {
-        for(size_t j = 0; j < num_inputs; ++j) {
+void generate_h3_values(mat_u16 values, u32 num_hashes, u32 num_inputs, u32 num_entries) {
+    for(u32 i = 0; i < num_hashes; ++i) {
+        for(u32 j = 0; j < num_inputs; ++j) {
             *MATRIX(values, i, j) = unif_rand(num_entries - 1);
         }
     }
 }
 
-void model_init(model_t* model, size_t num_inputs, size_t num_classes, size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t bleach, size_t block_size) {
-    model->pad_zeros = (((num_inputs / filter_inputs) * filter_inputs) - num_inputs) % filter_inputs;
-    model->num_inputs_total = num_inputs + model->pad_zeros;
-    model->bits_per_input = bits_per_input;
-    model->num_classes = num_classes;
+void model_init(model_t* model, model_init_params_t* params) {
+    // Params
+    model->p.num_classes = params->num_classes;
+    model->p.num_filters = params->num_inputs / params->filter_inputs;
 
-    model->num_filters = num_inputs / filter_inputs;
-    model->filter_inputs = filter_inputs;
-    model->filter_entries = filter_entries;
-    model->filter_hashes = filter_hashes;
+    model->p.pad_zeros = (((params->num_inputs / params->filter_inputs) * params->filter_inputs) - params->num_inputs) % params->filter_inputs;
+    model->p.num_inputs_total = params->num_inputs + model->p.pad_zeros;
+    model->p.bits_per_input = params->bits_per_input;
 
-    model->bleach = bleach;
+    model->p.block_size = params->block_size == 0 ? model->p.num_inputs_total : params->block_size;
 
-    model->block_size = block_size == 0 ? model->num_inputs_total : block_size;
+    model->p.filter_hashes = params->filter_hashes;
+    model->p.filter_inputs = params->filter_inputs;
+    model->p.filter_entries = params->filter_entries;
 
+    model->p.bleach = 1;
+
+    // Buffer allocs
     model_init_buffers(model);
+
+    // Buffer filling
+    srand(time(NULL));
+    randomize_input_order(model->input_order, model->p.num_inputs_total, model->p.block_size);
+
+    generate_h3_values(model->hash_parameters, model->p.filter_hashes, model->p.filter_inputs, model->p.filter_entries);
+
 }
 
 void model_init_buffers(model_t* model){
-    model->input_order = calloc(model->num_inputs_total, sizeof(*model->input_order));
-    srand(time(NULL));
+    // Order
+    model->input_order = calloc(model->p.num_inputs_total, sizeof(*model->input_order));
 
-    randomize_input_order(model->input_order, model->num_inputs_total, model->block_size);
+    // Hashes
+    matrix_u16_init(&model->hash_parameters, model->p.filter_hashes, model->p.filter_inputs);
 
-    tensor_u16_init(&model->filters, model->num_classes, model->num_filters, model->filter_entries);
-    
-    matrix_u16_init(&model->hash_parameters, model->filter_hashes, model->filter_inputs);
-    generate_h3_values(model->hash_parameters, model->filter_hashes, model->filter_inputs, model->filter_entries);
+    // Filters
+    tensor_u16_init(&model->filters, model->p.num_classes, model->p.num_filters, model->p.filter_entries);
 
-    reorder_buffer = calloc(model->num_inputs_total, sizeof(*reorder_buffer));
-
-    // used in predict2
-    matrix_u16_init(&hashes_buffer, model->num_filters, model->filter_hashes);
+    // Pre-alloc buffers used at inference time
+    reorder_buffer = calloc(model->p.num_inputs_total, sizeof(*reorder_buffer));
+    matrix_u16_init(&hashes_buffer, model->p.num_filters, model->p.filter_hashes);
 }
 
 // assumes input is already zero padded
-size_t model_predict(model_t* model, uint8_t* input) {
-    reorder_array(reorder_buffer, input, model->input_order, model->num_inputs_total);
+u64 model_predict(model_t* model, u8* input) {
+    reorder_array(reorder_buffer, input, model->input_order, model->p.num_inputs_total);
 
-    size_t response_index = 0;
-    uint64_t max_response = 0;
-    for(size_t it = 0; it < model->num_classes; ++it) {
-        uint64_t resp = discriminator_predict(model, it, reorder_buffer);
+    u64 response_index = 0;
+    u64 max_response = 0;
+    for(u32 it = 0; it < model->p.num_classes; ++it) {
+        u64 resp = discriminator_predict(model, it, reorder_buffer);
         if(resp >= max_response) {
             max_response = resp;
             response_index = it;
@@ -81,30 +89,30 @@ size_t model_predict(model_t* model, uint8_t* input) {
     return response_index;
 }
 
-void model_train(model_t* model, uint8_t* input, uint64_t target) {    
-    reorder_array(reorder_buffer, input, model->input_order, model->num_inputs_total);
+void model_train(model_t* model, u8* input, u64 target) {    
+    reorder_array(reorder_buffer, input, model->input_order, model->p.num_inputs_total);
 
     discriminator_train(model, target, reorder_buffer);
 }
 
-uint64_t discriminator_predict(model_t* model, size_t discriminator_index, uint8_t* input) {
-    uint64_t response = 0;
-    uint8_t* chunk = input;
+u64 discriminator_predict(model_t* model, u32 discriminator_index, u8* input) {
+    u64 response = 0;
+    u8* chunk = input;
 
-    for(size_t it = 0; it < model->num_filters; ++it) {
+    for(u32 it = 0; it < model->p.num_filters; ++it) {
         response += filter_check_membership(model, discriminator_index, it, chunk);
-        chunk += model->filter_inputs;
+        chunk += model->p.filter_inputs;
     }
 
     return response;
 }
 
-void discriminator_train(model_t* model, size_t discriminator_index, uint8_t* input) {
-    uint8_t* chunk = input;
+void discriminator_train(model_t* model, u32 discriminator_index, u8* input) {
+    u8* chunk = input;
 
-    for(size_t it = 0; it < model->num_filters; ++it) {
+    for(u32 it = 0; it < model->p.num_filters; ++it) {
         filter_add_member(model, discriminator_index, it, chunk);
-        chunk += model->filter_inputs;
+        chunk += model->p.filter_inputs;
     }
 }
 
@@ -115,9 +123,9 @@ void discriminator_train(model_t* model, size_t discriminator_index, uint8_t* in
  * @param input Boolean vector of shape (#inputs)
  * @param parameters Vector of shape (#inputs)
  */
-uint16_t h3_hash(uint8_t* input, uint16_t* parameters, size_t num_inputs) {
-    uint16_t result = parameters[0] * input[0];
-    for(size_t j = 1; j < num_inputs; ++j) {
+u16 h3_hash(u8* input, u16* parameters, u32 num_inputs) {
+    u16 result = parameters[0] * input[0];
+    for(u32 j = 1; j < num_inputs; ++j) {
         result ^= parameters[j] * input[j];
     }
 
@@ -125,88 +133,92 @@ uint16_t h3_hash(uint8_t* input, uint16_t* parameters, size_t num_inputs) {
 }
 
 // Can be replaced by an AND reduction (ONLY WHEN BLEACH=1)
-int filter_check_membership(model_t* model, size_t discriminator_index, size_t filter_index, uint8_t* input) {
-    uint16_t hash_result;
-    uint16_t entry;
+int filter_check_membership(model_t* model, u32 discriminator_index, u32 filter_index, u8* input) {
+    u16 hash_result;
+    u16 entry;
 
-    uint16_t minimum = 0xffff;
-    for(size_t it = 0; it < model->filter_hashes; ++it) {
-        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
+    u16 minimum = 0xffff;
+    for(u32 it = 0; it < model->p.filter_hashes; ++it) {
+        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->p.filter_inputs);
         entry = *TENSOR3D(model->filters, discriminator_index, filter_index, hash_result);
         if(entry <= minimum) minimum = entry;
     }
 
-    return minimum >= model->bleach;
+    return minimum >= model->p.bleach;
 }
 
-void filter_add_member(model_t* model, size_t discriminator_index, size_t filter_index, uint8_t* input) {
-    uint16_t hash_result;
-    uint16_t entry;
+void filter_add_member(model_t* model, u32 discriminator_index, u32 filter_index, u8* input) {
+    u16 hash_result;
+    u16 entry;
 
     // Get minimum of all filter hash response
-    uint16_t minimum = 0xffff;
-    for(size_t it = 0; it < model->filter_hashes; ++it) {
-        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
+    u16 minimum = 0xffff;
+    for(u32 it = 0; it < model->p.filter_hashes; ++it) {
+        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->p.filter_inputs);
         entry = *TENSOR3D(model->filters, discriminator_index, filter_index, hash_result);
         if(entry < minimum) minimum = entry;
     }
 
     // Increment the value of all minimum entries
-    for(size_t it = 0; it < model->filter_hashes; ++it) {
-        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->filter_inputs);
+    for(u32 it = 0; it < model->p.filter_hashes; ++it) {
+        hash_result = h3_hash(input, MATRIX_AXIS1(model->hash_parameters, it), model->p.filter_inputs);
         entry = *TENSOR3D(model->filters, discriminator_index, filter_index, hash_result);
         if(entry == minimum) 
             *TENSOR3D(model->filters, discriminator_index, filter_index, hash_result) = minimum + 1;
     }
 }
 
-uint16_t filter_reduction(uint16_t* filter, uint16_t* hashes, size_t filter_hashes) {
-    uint16_t min = 0xffff;
-    for(size_t it = 0; it < filter_hashes; ++it) {
-        uint16_t entry = filter[hashes[it]];
+u16 filter_reduction(u16* filter, u16* hashes, u32 filter_hashes) {
+    u16 min = 0xffff;
+    for(u32 it = 0; it < filter_hashes; ++it) {
+        u16 entry = filter[hashes[it]];
         if(entry < min) min = entry;
     }
 
     return min;
 }
 
-void perform_hashing(u16_matrix_t resulting_hashes, model_t* model, uint8_t* input) {
-    uint8_t* chunk = input;
-    for(size_t chunk_it = 0; chunk_it < model->num_filters; ++chunk_it) {
-        for(size_t hash_it = 0; hash_it < model->filter_hashes; ++hash_it) {
-            *MATRIX(resulting_hashes, chunk_it, hash_it) = h3_hash(chunk, MATRIX_AXIS1(model->hash_parameters, hash_it), model->filter_inputs);
+void perform_hashing(mat_u16 resulting_hashes, model_params_t* model_params, mat_u16 hash_parameters, u8* input) {
+    u8* chunk = input;
+    for(u32 chunk_it = 0; chunk_it < model_params->num_filters; ++chunk_it) {
+        for(u32 hash_it = 0; hash_it < model_params->filter_hashes; ++hash_it) {
+            *MATRIX(resulting_hashes, chunk_it, hash_it) = h3_hash(chunk, MATRIX_AXIS1(hash_parameters, hash_it), model_params->filter_inputs);
         }
-        chunk += model->filter_inputs;
+        chunk += model_params->filter_inputs;
     }
 }
 
-size_t model_predict2(model_t* model, uint8_t* input) {
+u64 model_predict2(model_t* model, u8* input) {
     // Reorder
-    reorder_array(reorder_buffer, input, model->input_order, model->num_inputs_total);
+    reorder_array(reorder_buffer, input, model->input_order, model->p.num_inputs_total);
 
     // Hash
-    perform_hashing(hashes_buffer, model, reorder_buffer);
+    perform_hashing(hashes_buffer, &model->p, model->hash_parameters, reorder_buffer);
 
     return model_predict_backend(model, hashes_buffer);
 }
 
-size_t model_predict_backend(model_t* model, u16_matrix_t hashes_buffer) {
+u64 model_predict_backend(model_t* model, mat_u16 hashes_buffer) {
     // Calculate popcounts for each discriminators
-    uint16_t popcounts[model->num_classes];
-    for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it)
+    u16 popcounts[model->p.num_classes];
+    for(u32 discr_it = 0; discr_it < model->p.num_classes; ++discr_it)
         popcounts[discr_it] = 0;
 
-    for(size_t filter_it = 0; filter_it < model->num_filters; ++filter_it) {
-        for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it) {
-            uint16_t resp = filter_reduction(TENSOR3D_AXIS2(model->filters, discr_it, filter_it), MATRIX_AXIS1(hashes_buffer, filter_it), model->filter_hashes);
-            popcounts[discr_it] += (resp >= model->bleach);
+    for(u32 filter_it = 0; filter_it < model->p.num_filters; ++filter_it) {
+        for(u32 discr_it = 0; discr_it < model->p.num_classes; ++discr_it) {
+            u16 resp = filter_reduction(TENSOR3D_AXIS2(model->filters, discr_it, filter_it), MATRIX_AXIS1(hashes_buffer, filter_it), model->p.filter_hashes);
+            popcounts[discr_it] += (resp >= model->p.bleach);
         }
     }
 
+    // for(u32 discr_it = 0; discr_it < model->p.num_classes; ++discr_it)
+    //     printf("%d ", popcounts[discr_it]);
+    // printf("\n");
+
     // Pick the argmax of popcounts
-    size_t response_index = 0;
-    uint16_t max_popcount = 0;
-    for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it) {
+    u64 response_index = 0;
+    u16 max_popcount = 0;
+    for(u32 discr_it = 0; discr_it < model->p.num_classes; ++discr_it) {
         if(popcounts[discr_it] > max_popcount) {
             max_popcount = popcounts[discr_it];
             response_index = discr_it;
@@ -217,12 +229,22 @@ size_t model_predict_backend(model_t* model, u16_matrix_t hashes_buffer) {
 }
 
 void model_bleach(model_t* model) {
-    for(size_t discr_it = 0; discr_it < model->num_classes; ++discr_it) {
-        for(size_t filter_it = 0; filter_it < model->num_filters; ++filter_it) {
-            for(size_t entry_it = 0; entry_it < model->filter_entries; ++entry_it) {
-                uint16_t* entry = TENSOR3D(model->filters, discr_it, filter_it, entry_it);
-                *entry = (*entry >= model->bleach);
+    for(u32 discr_it = 0; discr_it < model->p.num_classes; ++discr_it) {
+        for(u32 filter_it = 0; filter_it < model->p.num_filters; ++filter_it) {
+            for(u32 entry_it = 0; entry_it < model->p.filter_entries; ++entry_it) {
+                u16* entry = TENSOR3D(model->filters, discr_it, filter_it, entry_it);
+                *entry = (*entry >= model->p.bleach);
             }
         }
     }
+
+    model->p.bleach = 1;
+}
+
+void print_model_params(model_params_t* model_params) {
+    printf("Model parameters:\n");
+    printf("\tTensor size: %u x %u x %u\n", model_params->num_classes, model_params->num_filters, model_params->filter_entries);
+    printf("\tFilter params: %u (hashes) %u (inputs)\n", model_params->filter_hashes, model_params->filter_inputs);
+    printf("\tInput size: %u (padding %u) (bits %u)\n", model_params->num_inputs_total, model_params->pad_zeros, model_params->bits_per_input);
+    printf("\tOther: %u (block size) %u (bleach)\n", model_params->block_size, model_params->bleach);
 }

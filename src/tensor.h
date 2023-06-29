@@ -7,14 +7,12 @@
 
 #include "math.h"
 
-typedef uint32_t u32_t;
-typedef uint16_t u16_t;
-typedef uint8_t u8_t;
+#include "types.h"
 
-#define DATA_TYPE(symbol) symbol##_t
+#define DATA_TYPE(symbol) symbol
 
-#define TENSOR_TYPE_(symbol) symbol##_tensor3d_t_
-#define TENSOR_TYPE(symbol) symbol##_tensor3d_t
+#define TENSOR_TYPE_(symbol) tensor_##symbol##_
+#define TENSOR_TYPE(symbol) tensor_##symbol
 
 #define DEFINE_TENSOR_STRUCT(symbol) \
     typedef struct TENSOR_TYPE_(symbol) { \
@@ -24,6 +22,7 @@ typedef uint8_t u8_t;
     } TENSOR_TYPE(symbol)
 
 DEFINE_TENSOR_STRUCT(u16);
+DEFINE_TENSOR_STRUCT(u8);
 
 #define TENSOR3D_AXIS1(t, i) ((t).data + i * (t).stride1)
 #define TENSOR3D_AXIS2(t, i, j) (TENSOR3D_AXIS1(t, i) + j * (t).stride2)
@@ -52,9 +51,10 @@ DEFINE_TENSOR_STRUCT(u16);
     void tensor_##symbol##_init(TENSOR_TYPE(symbol)* t, size_t shape1, size_t shape2, size_t shape3);
 
 DEFINE_TENSOR_INIT(u16);
+DEFINE_TENSOR_INIT(u8);
 
-#define MAT_TYPE_(symbol) symbol##_matrix_t_
-#define MAT_TYPE(symbol) symbol##_matrix_t
+#define MAT_TYPE_(symbol) mat_##symbol##_
+#define MAT_TYPE(symbol) mat_##symbol
 
 #define DEFINE_MATRIX_STRUCT(symbol) \
     typedef struct MAT_TYPE_(symbol) { \
@@ -91,7 +91,7 @@ DEFINE_MATRIX_INIT(u32);
 DEFINE_MATRIX_INIT(u16);
 DEFINE_MATRIX_INIT(u8);
 
-void matrix_u8_mean(double* mean, u8_matrix_t dataset, size_t sample_size, size_t num_samples);
-void matrix_u8_variance(double* variance, u8_matrix_t dataset, size_t sample_size, size_t num_samples, double* mean);
+void mat_u8_mean(f64* mean, mat_u8 dataset, size_t sample_size, size_t num_samples);
+void mat_u8_variance(f64* variance, mat_u8 dataset, size_t sample_size, size_t num_samples, f64* mean);
 
 #endif

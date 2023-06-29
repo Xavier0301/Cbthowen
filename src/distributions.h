@@ -2,18 +2,20 @@
 
 #include <stdlib.h>
 #include <math.h>
-#include "stdint.h"
+#include <stdint.h>
+
+#include "types.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 /************* UNIFORM ***********/
-uint32_t unif_rand(uint32_t max);
+u32 unif_rand(u32 max);
 
-uint32_t unif_rand_range(uint32_t min, uint32_t max);
+u32 unif_rand_range(u32 min, u32 max);
 
-void shuffle_array(uint16_t* array, size_t length);
+void shuffle_array(u16* array, size_t length);
 
 /************* GAUSSIAN ***********/
 // Returns a random number sampled from N(0,1)

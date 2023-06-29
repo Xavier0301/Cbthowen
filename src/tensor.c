@@ -7,6 +7,8 @@
 
 INSTANTIATE_TENSOR_INIT(u16)
 
+INSTANTIATE_TENSOR_INIT(u8)
+
 #define INSTANTIATE_MATRIX_INIT(symbol) \
     void matrix_##symbol##_init(MAT_TYPE(symbol)* m, size_t rows, size_t cols) { \
         MATRIX_INIT(m, rows, cols, DATA_TYPE(symbol)); \
@@ -18,7 +20,7 @@ INSTANTIATE_MATRIX_INIT(u16)
 
 INSTANTIATE_MATRIX_INIT(u8)
 
-void matrix_u8_mean(double* mean, u8_matrix_t dataset, size_t sample_size, size_t num_samples) {
+void mat_u8_mean(f64* mean, mat_u8 dataset, size_t sample_size, size_t num_samples) {
     for(size_t offset_it = 0; offset_it < sample_size; ++offset_it) 
         mean[offset_it] = 0;
 
@@ -32,7 +34,7 @@ void matrix_u8_mean(double* mean, u8_matrix_t dataset, size_t sample_size, size_
         mean[offset_it] /= num_samples;
 }
 
-void matrix_u8_variance(double* variance, u8_matrix_t dataset, size_t sample_size, size_t num_samples, double* mean) {
+void mat_u8_variance(f64* variance, mat_u8 dataset, size_t sample_size, size_t num_samples, f64* mean) {
     for(size_t offset_it = 0; offset_it < sample_size; ++offset_it) 
         variance[offset_it] = 0;
 
