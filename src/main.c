@@ -23,7 +23,7 @@ void train() {
         .num_inputs = MNIST_IM_SIZE * 2,
         .bits_per_input = 2,
 
-        .block_size = 0,
+        .block_size_div = 1,
 
         .filter_hashes = 2,
         .filter_inputs = 28,

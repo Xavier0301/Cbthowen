@@ -9,7 +9,7 @@
 #include "data_loader.h"
 #include "data_manager.h"
 
-void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t block_size, size_t bleach_max, int bleach_pack) {
+void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, size_t bits_per_input, size_t block_size_div, size_t bleach_max, size_t saving_option) {
     double train_val_ratio = 0.9;
 
     printf("*TRAINING*\n");
@@ -21,7 +21,7 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
         .num_inputs = MNIST_IM_SIZE * bits_per_input,
         .bits_per_input = bits_per_input,
 
-        .block_size = block_size,
+        .block_size_div = block_size_div,
 
         .filter_hashes = filter_hashes,
         .filter_inputs = filter_inputs,
@@ -142,17 +142,18 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
     }
 
     double accuracy = ((double) correct) / ((double) num_test);
-    printf("Test accuracy %zu/%zu (%f%%)\n", correct, num_test, 100 * accuracy);
+    printf("test_accuracy, %zu, %zu, %.2f, %zu\n", correct, num_test, 100 * accuracy, model.p.block_size);
 
-    printf("Saving model\n");
-    if(bleach_pack) {
+    if(saving_option == 2) {
+        printf("Saving model\n");
         pmodel_t pmodel;
-        
+
         model_bleach(&model);
         model_pack(&model, &pmodel);
 
         write_pmodel("pmodel.dat", &pmodel);
-    } else {
+    } else if(saving_option == 1) {
+        printf("Saving model\n");
         write_model("model.dat", &model);
     }
 
@@ -161,7 +162,8 @@ void train(size_t filter_inputs, size_t filter_entries, size_t filter_hashes, si
 
 int main(int argc, char *argv[]) {                              
     if(argc < 8) {
-        printf("Error: usage: %s filter_inputs filter_entries filter_hashes bits_per_input block_size (0 for max size) bleach_max bleach_pack\n", argv[0]);
+        printf("Error: usage: %s filter_inputs filter_entries filter_hashes bits_per_input block_size_div (0 for max size) bleach_max saving_option\n", argv[0]);
+        printf("\tSaving options: 0 for nothing, 1 for model, 2 for bleach/packed model\n");
         printf("\tExample usage: %s 28 1024 2 2 0 12 0\n", argv[0]);
 
         return 1;
@@ -171,11 +173,11 @@ int main(int argc, char *argv[]) {
     size_t filter_entries = atoi(argv[2]);
     size_t filter_hashes = atoi(argv[3]);
     size_t bits_per_input = atoi(argv[4]);
-    size_t block_size = atoi(argv[5]);
+    size_t block_size_div = atoi(argv[5]);
     size_t bleach_max = atoi(argv[6]);
-    size_t bleach_pack = atoi(argv[7]);
+    size_t saving_option = atoi(argv[7]);
 
-    printf("Training with parameters filter_inputs=%zu, filter_entries=%zu, filter_hashes=%zu, bits_per_input=%zu, block_size=%zu, bleach=..%zu, bleach_pack=%zu\n", filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size, bleach_max, bleach_pack);
+    printf("Training with parameters filter_inputs=%zu, filter_entries=%zu, filter_hashes=%zu, bits_per_input=%zu, block_size_div=%zu, bleach=..%zu, saving_option=%zu\n", filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size_div, bleach_max, saving_option);
 
-    train(filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size, bleach_max, bleach_pack);
+    train(filter_inputs, filter_entries, filter_hashes, bits_per_input, block_size_div, bleach_max, saving_option);
 }

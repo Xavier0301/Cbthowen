@@ -13,7 +13,7 @@ void create_model(size_t input_size, size_t bits_per_input, size_t num_classes, 
         .num_inputs = num_inputs,
         .bits_per_input = bits_per_input,
 
-        .block_size = 0,
+        .block_size_div = 1,
 
         .filter_hashes = filter_hashes,
         .filter_inputs = filter_inputs,

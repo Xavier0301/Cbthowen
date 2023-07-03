@@ -23,7 +23,7 @@ typedef struct model_init_params_t_ {
     u32 bits_per_input;
 
     // Reorder
-    u32 block_size;
+    u32 block_size_div;
 
     // Filter
     u32 filter_hashes;

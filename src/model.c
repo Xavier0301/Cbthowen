@@ -38,7 +38,7 @@ void model_init(model_t* model, model_init_params_t* params) {
     model->p.num_inputs_total = params->num_inputs + model->p.pad_zeros;
     model->p.bits_per_input = params->bits_per_input;
 
-    model->p.block_size = params->block_size == 0 ? model->p.num_inputs_total : params->block_size;
+    model->p.block_size = model->p.num_inputs_total / params->block_size_div;
 
     model->p.filter_hashes = params->filter_hashes;
     model->p.filter_inputs = params->filter_inputs;
