@@ -13,6 +13,8 @@
 #include "model.h"
 #include "packing.h"
 
+#define PMODEL_FILTER_SIZE(pmodel) ((pmodel)->p.filter_entries >> 3)
+
 typedef struct pmodel_t_ {
     model_params_t p;
 

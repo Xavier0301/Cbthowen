@@ -9,7 +9,7 @@ void pmodel_init_buffers(pmodel_t* model) {
     matrix_u16_init(&model->hash_parameters, model->p.filter_hashes, model->p.filter_inputs);
 
     // Filters
-    tensor_u8_init(&model->filters, model->p.num_classes, model->p.num_filters, model->p.filter_entries);
+    tensor_u8_init(&model->filters, model->p.num_classes, model->p.num_filters, PMODEL_FILTER_SIZE(model));
 }
 
 void model_port(model_t* source, pmodel_t* dest) {
@@ -42,7 +42,7 @@ void model_pack(model_t* source, pmodel_t* dest) {
         source->p.num_filters,
         get_packed_bytes(source->p.filter_entries));
 
-    // We could pack the whole tensor as an array but this is more legible 
+    // We could pack the whole tensor as an aray but this is more legible 
     //      and robust to block sizes that don't divide the number of entries
     for(size_t discr_it = 0; discr_it < source->p.num_classes; ++discr_it) {
         for(size_t filter_it = 0; filter_it < source->p.num_filters; ++filter_it) {

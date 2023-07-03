@@ -28,8 +28,6 @@ void read_model(const char* filename, model_t* model) {
 
     model_init_buffers(model);
 
-    print_model_params(&model->p);
-
     READ_BUFFER(model, input_order, model->p.num_inputs_total, f);
 
     read_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
@@ -48,7 +46,7 @@ void read_pmodel(const char* filename, pmodel_t* model) {
     READ_BUFFER(model, input_order, model->p.num_inputs_total, f);
 
     read_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
-    read_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
+    read_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * PMODEL_FILTER_SIZE(model));
 
     fclose(f);
 }
@@ -138,7 +136,7 @@ void write_pmodel(const char* filename, pmodel_t* model) {
     SAVE_BUFFER(model, input_order, model->p.num_inputs_total, f);
 
     write_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
-    write_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
+    write_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * PMODEL_FILTER_SIZE(model));
 
     fclose(f);
 }
