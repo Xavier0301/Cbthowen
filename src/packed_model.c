@@ -2,14 +2,28 @@
 
 // Assumes model param is already set
 void pmodel_init_buffers(pmodel_t* model) {
+    // Encoding thresholds
+#ifdef STRIDED_ENCODING
+    matrix_u8_init(&model->encoding_thresholds, model->p.bits_per_input, model->p.num_inputs);
+#else
+    matrix_u8_init(&model->encoding_thresholds, model->p.num_inputs, model->p.bits_per_input);
+#endif
+
     // Order
-    model->input_order = calloc(model->p.num_inputs_total, sizeof(*model->input_order));
+#ifdef REORDER_FIRST
+    model->input_order = calloc(model->p.num_inputs, sizeof(*model->input_order));
+#else
+    model->input_order = calloc(model->p.num_inputs_encoded, sizeof(*model->input_order));
+#endif
 
     // Hashes
     matrix_u16_init(&model->hash_parameters, model->p.filter_hashes, model->p.filter_inputs);
 
     // Filters
     tensor_u8_init(&model->filters, model->p.num_classes, model->p.num_filters, PMODEL_FILTER_SIZE(model));
+
+    // Pre-alloc buffers used at inference time
+    model_alloc_runtime_buffers(&model->p);
 }
 
 void model_port(model_t* source, pmodel_t* dest) {
@@ -18,8 +32,23 @@ void model_port(model_t* source, pmodel_t* dest) {
 
     pmodel_init_buffers(dest);
 
+    // Copy thresholds
+#ifdef STRIDED_ENCODING
+    for(u32 bit_it = 0; bit_it < source->p.bits_per_input; ++bit_it) {
+        for(u32 it = 0; it < source->p.num_inputs; ++it) {
+            *MATRIX(dest->encoding_thresholds, bit_it, it) = *MATRIX(source->encoding_thresholds, bit_it, it);
+        }
+    }
+#else
+    for(u32 it = 0; it < source->p.num_inputs_encoded; ++it) {
+        for(u32 bit_it = 0; bit_it < source->p.bits_per_input; ++bit_it) {
+            *MATRIX(dest->encoding_thresholds, it, bit_it) = *MATRIX(source->encoding_thresholds, it, bit_it);
+        }
+    }
+#endif
+
     // Copy input order
-    for(u32 it = 0; it < source->p.num_inputs_total; ++it)
+    for(u32 it = 0; it < source->p.num_inputs_encoded; ++it)
         dest->input_order[it] = source->input_order[it];
 
     // Copy hash parameters
@@ -63,9 +92,41 @@ u8 pfilter_reduction(u8* filter, u16* hashes, u32 filter_hashes) {
     return result;
 }
 
+void pmodel_frontend(pmodel_t* model, u8* input) {
+#ifdef REORDER_FIRST
+    // Reorder
+    reorder_array(
+        reorder_buffer, input, 
+        model->input_order, model->p.num_inputs
+    );
+
+    // Encode
+    encode(
+        encoding_buffer, reorder_buffer, 
+        model->encoding_thresholds, 
+        model->p.bits_per_input, model->p.num_inputs, model->p.filter_entries
+    );
+#else
+    // Encode
+    encode(
+        encoding_buffer, input, 
+        model->encoding_thresholds, 
+        model->p.bits_per_input, model->p.num_inputs, model->p.filter_entries
+    );
+    // print_binarized_image_raw(model->encoding_thresholds, NULL, 0, model->p.bits_per_input);
+    
+    // Reorder
+    reorder_array(
+        reorder_buffer, encoding_buffer, 
+        model->input_order, model->p.num_inputs_encoded
+    );
+    // print_binarized_image_raw((mat_u8) {.data=reorder_buffer, .stride=model->p.num_inputs_encoded}, NULL, 0, model->p.bits_per_input);
+#endif
+}
+
 u64 pmodel_predict(pmodel_t* model, u8* input) {
     // Reorder
-    reorder_array(reorder_buffer, input, model->input_order, model->p.num_inputs_total);
+    pmodel_frontend(model, input);
 
     // Hash
     perform_hashing(hashes_buffer, &model->p, model->hash_parameters, reorder_buffer);

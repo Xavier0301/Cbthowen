@@ -35,6 +35,13 @@ DEFINE_TENSOR_STRUCT(u8);
         t->data = (type*) calloc(shape1 * shape2 * shape3, sizeof(*t->data)); \
     } while(0)
 
+#define TENSOR_VIEW(type, buffer, shape1, shape2, shape3) \
+    (type) { \
+        .data = buffer, \
+        .stride1 = shape2 * shape3, \
+        .stride2 = shape3, \
+    }
+
 #define TENSOR_PRINT(t, shape1, shape2, shape3) \
     do { \
         for(size_t i = 0; i < shape1; ++i) { \

@@ -23,9 +23,9 @@ void swap(u16* a, u16* b) {
     *b = tmp;
 }
 
-void shuffle_array(u16* array, size_t length) {
-    for(size_t i = length - 1; i >= 1; --i) {
-        size_t j = unif_rand(i);
+void shuffle_array(u16* array, u32 length) {
+    for(u32 i = length - 1; i >= 1; --i) {
+        u32 j = unif_rand(i);
         swap(array + i, array + j);
     }
 }

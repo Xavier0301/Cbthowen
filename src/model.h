@@ -11,7 +11,8 @@
 #include "tensor.h"
 #include "distributions.h"
 
-extern u8* reorder_buffer; // of shape (#Inputs)
+extern u8* encoding_buffer; // of shape (#Inputs * #Bits)
+extern u8* reorder_buffer; // of shape if REORDER_FIRST: (#Inputs), else: (#Inputs * #Bits)
 extern mat_u16 hashes_buffer; // of shape (#Filters, #Hashes)
 
 typedef struct model_init_params_t_ {
@@ -23,7 +24,8 @@ typedef struct model_init_params_t_ {
     u32 bits_per_input;
 
     // Reorder
-    u32 block_size_div;
+    u32 dim1_block_size;
+    u32 dim2_block_size; // 1 if 1d, otherwise > 1
 
     // Filter
     u32 filter_hashes;
@@ -37,12 +39,14 @@ typedef struct model_params_t_ {
     u32 num_filters;
 
     // Input
-    u32 pad_zeros;
-    u32 num_inputs_total;
+    u32 num_inputs;
     u32 bits_per_input;
+    u32 pad_zeros;
+    u32 num_inputs_encoded;
 
     // Reorder
-    u32 block_size;
+    u32 dim1_block_size;
+    u32 dim2_block_size; // 1 if 1d, otherwise > 1
 
     // Filter
     u32 filter_hashes;
@@ -56,17 +60,20 @@ typedef struct model_params_t_ {
 typedef struct model_t_ {
     model_params_t p;
 
-    u16* input_order; // of shape (#Inputs), with elements in [0; num_inputs_total)
-    mat_u16 hash_parameters; // of shape (#Hashes, #Inputs)
+    mat_u8 encoding_thresholds; // of shape if STRIDED_ENCODING: (#Bits, #Inputs), else: (#Inputs, #Bits)
+    u16* input_order; // of shape if REORDER_FIRST: (#Inputs) else: (#InputsEncoded), with elements in [0; len)
+    mat_u16 hash_parameters; // of shape (#Hashes, #InputsEncoded)
     tensor_u16 filters; // of shape (#Discriminators, #Filters, #Entries)
 } model_t;
 
+void encode(u8* result, u8* input, mat_u8 thresholds, u32 num_bits, u32 num_inputs, u32 stride);
 
 void generate_h3_values(mat_u16 values, u32 num_hashes, u32 num_inputs, u32 num_entries);
 
+void reorder_thresholds(mat_u8 result, mat_u8 input, u16* order, u32 num_bits, u32 num_inputs);
 void reorder_array(u8* buffer, u8* input, u16* order, u32 len);
 
-void randomize_input_order(u16* input_order, u32 len, u32 block_size);
+void randomize_input_order(u16* input_order, u32 len, u32 dim1_block_size, u32 dim2_block_size, u32 aspect_ratio);
 
 /**
  * @brief Initialize a model.
@@ -86,6 +93,8 @@ void model_init(model_t* model, model_init_params_t* params);
  */
 void model_init_buffers(model_t* model);
 
+void model_alloc_runtime_buffers(model_params_t* p);
+
 /**
  * @brief Performs an inference with the provided input. Hashing is delegated to filters.
  * 
@@ -104,6 +113,8 @@ u64 model_predict(model_t* model, u8* input);
  * @return u64 
  */
 u64 model_predict2(model_t* model, u8* input);
+
+void model_frontend(model_t* model, u8* input);
 
 /**
  * @brief Performs an inference with the provided HASHED input. 

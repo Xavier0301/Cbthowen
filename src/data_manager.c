@@ -8,11 +8,13 @@ void read_model_params(FILE* f, model_params_t* params) {
     READ_FIELD(params, num_classes, f);
     READ_FIELD(params, num_filters, f);
 
-    READ_FIELD(params, pad_zeros, f);
-    READ_FIELD(params, num_inputs_total, f);
+    READ_FIELD(params, num_inputs, f);
     READ_FIELD(params, bits_per_input, f);
+    READ_FIELD(params, pad_zeros, f);
+    READ_FIELD(params, num_inputs_encoded, f);
 
-    READ_FIELD(params, block_size, f);
+    READ_FIELD(params, dim1_block_size, f);
+    READ_FIELD(params, dim2_block_size, f);
 
     READ_FIELD(params, filter_hashes, f);
     READ_FIELD(params, filter_inputs, f);
@@ -28,7 +30,9 @@ void read_model(const char* filename, model_t* model) {
 
     model_init_buffers(model);
 
-    READ_BUFFER(model, input_order, model->p.num_inputs_total, f);
+    read_matrix_u8(f, model->encoding_thresholds, model->p.num_inputs_encoded);
+
+    READ_BUFFER(model, input_order, model->p.num_inputs_encoded, f);
 
     read_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
     read_tensor_u16(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
@@ -43,7 +47,9 @@ void read_pmodel(const char* filename, pmodel_t* model) {
 
     pmodel_init_buffers(model);
 
-    READ_BUFFER(model, input_order, model->p.num_inputs_total, f);
+    read_matrix_u8(f, model->encoding_thresholds, model->p.num_inputs_encoded);
+
+    READ_BUFFER(model, input_order, model->p.num_inputs_encoded, f);
 
     read_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
     read_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * PMODEL_FILTER_SIZE(model));
@@ -102,11 +108,13 @@ void write_model_params(FILE* f, model_params_t* params) {
     SAVE_FIELD(params, num_classes, f);
     SAVE_FIELD(params, num_filters, f);
 
-    SAVE_FIELD(params, pad_zeros, f);
-    SAVE_FIELD(params, num_inputs_total, f);
+    SAVE_FIELD(params, num_inputs, f);
     SAVE_FIELD(params, bits_per_input, f);
+    SAVE_FIELD(params, pad_zeros, f);
+    SAVE_FIELD(params, num_inputs_encoded, f);
 
-    SAVE_FIELD(params, block_size, f);
+    SAVE_FIELD(params, dim1_block_size, f);
+    SAVE_FIELD(params, dim2_block_size, f);
 
     SAVE_FIELD(params, filter_hashes, f);
     SAVE_FIELD(params, filter_inputs, f);
@@ -120,7 +128,9 @@ void write_model(const char* filename, model_t* model) {
 
     write_model_params(f, &model->p);
 
-    SAVE_BUFFER(model, input_order, model->p.num_inputs_total, f);
+    write_matrix_u8(f, model->encoding_thresholds, model->p.num_inputs_encoded);
+
+    SAVE_BUFFER(model, input_order, model->p.num_inputs_encoded, f);
 
     write_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
     write_tensor_u16(f, model->filters, model->p.num_classes * model->p.num_filters * model->p.filter_entries);
@@ -133,7 +143,9 @@ void write_pmodel(const char* filename, pmodel_t* model) {
 
     write_model_params(f, &model->p);
 
-    SAVE_BUFFER(model, input_order, model->p.num_inputs_total, f);
+    write_matrix_u8(f, model->encoding_thresholds, model->p.num_inputs_encoded);
+
+    SAVE_BUFFER(model, input_order, model->p.num_inputs_encoded, f);
 
     write_matrix_u16(f, model->hash_parameters, model->p.filter_hashes * model->p.filter_inputs);
     write_tensor_u8(f, model->filters, model->p.num_classes * model->p.num_filters * PMODEL_FILTER_SIZE(model));

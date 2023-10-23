@@ -31,25 +31,26 @@
 #define MNIST_LEN_INFO_IMAGE 4
 #define MNIST_LEN_INFO_LABEL 2
 
-void load_mnist_file(mat_u8 patterns, u8* labels, char* image_path, char* label_path, size_t num_samples, size_t offset);
-void load_mnist_train(mat_u8 patterns, u8* labels, size_t num_samples);
-void load_mnist_test(mat_u8 patterns, u8* labels, size_t num_samples);
-void load_infimnist(mat_u8 patterns, u8* labels, size_t num_samples);
-void load_infimnist_labels(u8* labels, size_t num_samples);
-void load_mnist_train_offset(mat_u8 patterns, u8* labels, size_t num_samples, size_t offset);
-void load_mnist_test_offset(mat_u8 patterns, u8* labels, size_t num_samples, size_t offset);
-void load_infimnist_offset(mat_u8 patterns, u8* labels, size_t num_samples, size_t offset);
-void load_infimnist_labels_offset(u8* labels, size_t num_samples, size_t offset);
+void load_mnist_file(mat_u8 patterns, u8* labels, char* image_path, char* label_path, u32 num_samples, u32 offset);
+void load_mnist_train(mat_u8 patterns, u8* labels, u32 num_samples);
+void load_mnist_test(mat_u8 patterns, u8* labels, u32 num_samples);
+void load_infimnist(mat_u8 patterns, u8* labels, u32 num_samples);
+void load_infimnist_labels(u8* labels, u32 num_samples);
+void load_mnist_train_offset(mat_u8 patterns, u8* labels, u32 num_samples, u32 offset);
+void load_mnist_test_offset(mat_u8 patterns, u8* labels, u32 num_samples, u32 offset);
+void load_infimnist_offset(mat_u8 patterns, u8* labels, u32 num_samples, u32 offset);
+void load_infimnist_labels_offset(u8* labels, u32 num_samples, u32 offset);
 
-void binarize_matrix(mat_u8 result, mat_u8 dataset, size_t sample_size, size_t num_samples, size_t num_bits);
-void binarize_matrix_meanvar(mat_u8 result, mat_u8 dataset, double* mean, double* variance, size_t num_samples, size_t num_bits);
+void set_thresholds(mat_u8* thresholds, mat_u8 dataset, u32 sample_size, u32 num_samples, u32 num_bits);
+void binarize_matrix(mat_u8* resulting_thresholds, mat_u8 result, mat_u8 dataset, u32 sample_size, u32 num_samples, u32 num_bits);
+void binarize_matrix_thresholds(mat_u8 result, mat_u8 dataset, mat_u8 thresholds, u32 sample_size, u32 num_samples, u32 num_bits);
 
-void reorder_dataset(mat_u8 result, mat_u8 dataset, u16* order, size_t num_samples, size_t num_elements);
+void reorder_dataset(mat_u8 result, mat_u8 dataset, u16* order, u32 num_samples, u32 num_elements);
 
-void print_binarized_image_raw(mat_u8 m, u8* labels, size_t index, size_t num_bits);
-void print_binarized_image(mat_u8 m, u8* labels, size_t index, size_t num_bits);
-void print_image_raw(mat_u8 m, u8* labels, size_t index);
-void print_image(mat_u8 m, u8* labels, size_t index);
+void print_binarized_image_raw(mat_u8 m, u8* labels, u32 index, u32 num_bits);
+void print_binarized_image(mat_u8 m, u8* labels, u32 index, u32 num_bits);
+void print_image_raw(mat_u8 m, u8* labels, u32 index);
+void print_image(mat_u8 m, u8* labels, u32 index);
 
-void fill_input_random(u8* input, size_t input_length);
+void fill_input_random(u8* input, u32 input_length);
 

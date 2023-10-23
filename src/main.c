@@ -23,7 +23,8 @@ void train() {
         .num_inputs = MNIST_IM_SIZE * 2,
         .bits_per_input = 2,
 
-        .block_size_div = 1,
+        .dim1_block_size = 1,
+        .dim2_block_size = 1,
 
         .filter_hashes = 2,
         .filter_inputs = 28,
@@ -397,6 +398,8 @@ void infer_from_binarized_dset() {
          
     model_t model;
     read_model("model.dat", &model);
+
+    print_model_params(&model.p);
     
     // Loading binarized dataset
     printf("Loading dataset\n");
